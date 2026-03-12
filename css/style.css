@@ -1,0 +1,32 @@
+/* リセットと基本設定 */
+body {
+    margin: 0;
+    padding: 0;
+    background-color: #f0f0f0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'Arial', sans-serif;
+    /* タップハイライトを無効化 */
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ゲームコンテナの設定 */
+#game-container {
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: #87CEEB; /* プレイ中の背景色（空） */
+    /* レスポンシブ対応: 最大幅を制限し、縦横比を維持 */
+    width: 100%;
+    max-width: 800px;
+}
+
+/* Canvasの設定 */
+canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    background-color: transparent;
+}

@@ -1,173 +1,134 @@
-/**
- * Pom Runner - Main Game Script
- * Version: 0.1.0
- * シニアエンジニアによる基盤実装
- */
-
 class PomRunner {
   constructor() {
-    // 設定値
     this.config = {
-      baseWidth: 1280, // ゲームの基準解像度（横）
-      baseHeight: 720, // ゲームの基準解像度（縦）
+      baseWidth: 1280,
+      baseHeight: 720,
       version: 'v0.1.0',
       playerImagePath: 'assets/image/player.png',
     };
 
-    // 状態管理
     this.state = {
       isPaused: true,
-      isGameOver: false,
       gameStarted: false,
     };
 
-    // Canvas要素の設定
     this.canvas = document.getElementById('game-canvas');
     this.ctx = this.canvas.getContext('2d');
 
-    // アセット
     this.playerImage = new Image();
     this.isImageLoaded = false;
 
-    // 初期化実行
     this.init();
   }
 
-  /**
-   * 初期設定とイベントリスナーの登録
-   */
   init() {
-    // 画像のプリロード
     this.playerImage.src = this.config.playerImagePath;
-    this.playerImage.onload = () => {
-      this.isImageLoaded = true;
-      console.log('Player image loaded successfully.');
-    };
-    this.playerImage.onerror = () => {
-      console.error(
-        'Failed to load player image at: ' + this.config.playerImagePath,
-      );
-    };
+    this.playerImage.onload = () => (this.isImageLoaded = true);
 
-    // リサイズ対応
+    // Chrome/Safariの100vh問題を解決するためのカスタム変数
+    this.updateViewportVariable();
+
+    // リサイズ・画面回転時に再計算
+    window.addEventListener('resize', () => {
+      this.updateViewportVariable();
+      this.handleResize();
+    });
+
     this.handleResize();
-    window.addEventListener('resize', () => this.handleResize());
 
-    // スタートボタンのイベント
     const startBtn = document.getElementById('start-button');
     startBtn.addEventListener('click', () => this.startGame());
 
-    // メインループの開始（描画自体は状態を見て判断）
     this.gameLoop();
   }
 
   /**
-   * ウィンドウサイズに合わせてCanvasをスケールさせる（アスペクト比維持）
+   * モバイルブラウザのツールバーを除いた正確な高さを計算
    */
-  handleResize() {
-    const windowWidth = window.innerWidth;
-    const windowHeight = window.innerHeight;
-    const windowRatio = windowWidth / windowHeight;
-    const targetRatio = this.config.baseWidth / this.config.baseHeight;
+  updateViewportVariable() {
+    let vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', `${vh}px`);
+  }
 
-    if (windowRatio > targetRatio) {
-      // ウィンドウの方が横長な場合、高さを基準に調整
-      this.canvas.style.height = windowHeight + 'px';
-      this.canvas.style.width = windowHeight * targetRatio + 'px';
+  handleResize() {
+    // window.innerHeight を直接使用することで、アドレスバーを除いた高さを取得
+    const displayWidth = window.innerWidth;
+    const displayHeight = window.innerHeight;
+
+    const targetRatio = this.config.baseWidth / this.config.baseHeight;
+    const currentRatio = displayWidth / displayHeight;
+
+    if (currentRatio > targetRatio) {
+      // 画面が基準より横長：高さを基準にサイズ決定
+      this.canvas.style.height = displayHeight + 'px';
+      this.canvas.style.width = displayHeight * targetRatio + 'px';
     } else {
-      // ウィンドウの方が縦長な場合、幅を基準に調整
-      this.canvas.style.width = windowWidth + 'px';
-      this.canvas.style.height = windowWidth / targetRatio + 'px';
+      // 画面が基準より縦長（または一致）：幅を基準にサイズ決定
+      this.canvas.style.width = displayWidth + 'px';
+      this.canvas.style.height = displayWidth / targetRatio + 'px';
     }
 
-    // 内部解像度を固定
+    // 内部の解像度は固定（描画のズレを防ぐ）
     this.canvas.width = this.config.baseWidth;
     this.canvas.height = this.config.baseHeight;
   }
 
-  /**
-   * フルスクリーン有効化とゲーム開始処理
-   */
   async startGame() {
     if (!this.state.gameStarted) {
       try {
-        // フルスクリーンリクエスト（ユーザーアクション内である必要あり）
-        const container = document.getElementById('game-container');
-        if (container.requestFullscreen) {
-          await container.requestFullscreen();
-        } else if (container.webkitRequestFullscreen) {
-          await container.webkitRequestFullscreen();
+        // Chromeモバイルで最大化（フルスクリーン）を確実に行う
+        const doc = document.documentElement;
+        if (doc.requestFullscreen) {
+          await doc.requestFullscreen();
+        } else if (doc.webkitRequestFullscreen) {
+          await doc.webkitRequestFullscreen();
         }
 
-        // 横画面への固定試行（一部のモバイルブラウザで対応）
+        // 画面向きの固定を再試行
         if (screen.orientation && screen.orientation.lock) {
-          await screen.orientation.lock('landscape').catch((err) => {
-            console.warn('Orientation lock failed: ', err);
-          });
+          await screen.orientation.lock('landscape').catch(() => {});
         }
       } catch (err) {
-        console.warn('Fullscreen request failed: ', err);
+        console.warn('Fullscreen/Orientation lock failed:', err);
       }
 
-      // UIを非表示にする
       document.getElementById('ui-start-screen').style.display = 'none';
       this.state.gameStarted = true;
       this.state.isPaused = false;
     }
   }
 
-  /**
-   * メインのゲームループ（60FPS目標）
-   */
   gameLoop() {
     this.update();
     this.draw();
     requestAnimationFrame(() => this.gameLoop());
   }
 
-  /**
-   * ロジック更新（位置計算、衝突判定等）
-   */
   update() {
     if (this.state.isPaused || !this.state.gameStarted) return;
-
-    // 現時点では更新処理なし（Step 2以降で実装）
   }
 
-  /**
-   * 描画処理
-   */
   draw() {
-    // 背景クリア
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-    // 背景色（スカイブルー）
     this.ctx.fillStyle = '#87CEEB';
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // 地面（仮）
+    // 地面
     this.ctx.fillStyle = '#8B4513';
     this.ctx.fillRect(0, this.canvas.height - 100, this.canvas.width, 100);
 
-    // プレイヤー描画（画像読み込み済みの場合のみ）
     if (this.isImageLoaded && this.state.gameStarted) {
-      // 仮の座標 (中央左寄りに配置)
-      const playerX = 150;
-      const playerY = this.canvas.height - 100 - 100; // 地面の上
-      const playerSize = 100;
-
       this.ctx.drawImage(
         this.playerImage,
-        playerX,
-        playerY,
-        playerSize,
-        playerSize,
+        150,
+        this.canvas.height - 200,
+        100,
+        100,
       );
     }
   }
 }
 
-// インスタンス化
 window.addEventListener('DOMContentLoaded', () => {
   new PomRunner();
 });

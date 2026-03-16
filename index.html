@@ -2,8 +2,9 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>ポムランナー (Pom Runner)</title>
+    <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -14,6 +15,13 @@
             <h1 class="game-title">POM RUNNER</h1>
             <button id="start-button">START</button>
             <div id="version-display">v0.1.0</div>
+        </div>
+
+        <div id="orientation-warning">
+            <div class="warning-content">
+                <p>画面を横向きにしてください</p>
+                <div class="phone-icon"></div>
+            </div>
         </div>
     </div>
 

@@ -1,30 +1,56 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ポムランナー (Pom Runner)</title>
-    <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <div id="game-container">
-        <canvas id="game-canvas"></canvas>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>ポムランナー (Pom Runner) v0.0.1</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="game-wrapper">
+      <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
 
-        <div id="ui-start-screen">
-            <h1 class="game-title">POM RUNNER</h1>
-            <button id="start-button">START</button>
-            <div id="version-display">v0.1.5</div>
+        <div id="ui-layer" class="absolute inset-0 pointer-events-none text-[#5E3A21]">
+          <div class="absolute top-4 left-4 bg-white/95 px-6 py-2 rounded-2xl shadow-md border-4 border-[#FDE047]">
+            <p class="text-sm font-black opacity-60 leading-none mb-1">SCORE</p>
+            <p id="currentScore" class="text-3xl font-black leading-none">0</p>
+          </div>
+          <div id="version-display" class="absolute bottom-2 right-4 text-[10px] font-bold opacity-30">v0.4.0</div>
         </div>
 
-        <div id="orientation-warning">
-            <div class="warning-content">
-                <p>画面を横向きにしてください</p>
-                <div class="phone-icon"></div>
+        <div id="start-screen" class="absolute inset-0 flex flex-col items-center justify-center bg-[#87CEEB]/80 backdrop-blur-sm z-[300] transition-opacity duration-500">
+          <div class="bg-white p-10 rounded-[3rem] shadow-2xl text-center border-8 border-[#FDE047] max-w-lg w-11/12">
+            <h1 class="text-5xl font-black text-[#5E3A21] mb-8 tracking-tighter shadow-sm">POM RUNNER</h1>
+            <button id="start-btn" class="bg-[#FDE047] text-[#5E3A21] text-2xl font-black py-5 px-16 rounded-full shadow-[0_8px_0_#D4B106] hover:translate-y-1 hover:shadow-[0_4px_0_#D4B106] active:translate-y-2 active:shadow-none transition-all">
+              START
+            </button>
+            <p class="mt-8 text-[#5E3A21] font-bold opacity-60">画面タップでジャンプ！2回で2段ジャンプ！</p>
+          </div>
+        </div>
+
+        <div id="gameover-screen" class="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-500 z-[400] hidden">
+          <div class="bg-white p-8 rounded-[3rem] shadow-2xl text-center border-8 border-[#5E3A21] w-11/12 max-w-sm">
+            <h2 class="text-3xl font-black mb-4 text-red-500">GAME OVER</h2>
+            <div class="mb-6">
+              <p class="text-gray-500 font-bold mb-1 uppercase tracking-widest text-xs">Final Score</p>
+              <p id="finalScore" class="text-6xl font-black text-orange-500">0</p>
             </div>
+            <button id="retry-btn" class="bg-[#FDE047] text-[#5E3A21] text-xl font-black py-4 px-12 rounded-full shadow-[0_6px_0_#D4B106] hover:translate-y-1 active:translate-y-2 transition-all">
+              もういちど遊ぶ
+            </button>
+          </div>
         </div>
-    </div>
 
+        <div id="orientation-warning" class="fixed inset-0 bg-[#222] text-white z-[9999] hidden flex-col items-center justify-center text-center p-10">
+          <p class="text-xl font-bold mb-4">画面を横向きにしてください</p>
+          <div class="w-12 h-20 border-4 border-white rounded-lg animate-bounce"></div>
+        </div>
+
+      </div>
+    </div>
     <script src="main.js"></script>
-</body>
+  </body>
 </html>

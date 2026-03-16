@@ -1,7 +1,7 @@
 /**
  * Pom Runner - Main Game Script
- * Version: v0.5.0
- * 修正: スプライトアニメーション、パーティクル演出、フィーバーモード、描画順序調整
+ * Version: v0.6.0
+ * 修正: スタート画面Ver表記、障害物/星のバリエーション強化、演出向上
  */
 
 // --- 演出用パーティクルクラス ---
@@ -13,7 +13,7 @@ class Particle {
     this.size = Math.random() * 5 + 2;
     this.vx = (Math.random() - 0.5) * 10;
     this.vy = (Math.random() - 0.5) * 10;
-    this.life = 1.0; // 1.0から0まで減少
+    this.life = 1.0;
     this.decay = Math.random() * 0.05 + 0.02;
   }
 
@@ -37,7 +37,7 @@ class PomRunner {
   constructor() {
     this.config = {
       baseHeight: 720,
-      version: 'v0.5.0',
+      version: 'v0.6.0',
       playerImagePath: 'assets/image/player.png',
       assets: {
         bgBack: 'assets/image/bg_back.png',
@@ -52,7 +52,7 @@ class PomRunner {
       initialGameSpeed: 8,
       speedIncrement: 0.0005,
       spawnInterval: 100,
-      feverThreshold: 100, // フィーバー突入に必要なゲージ
+      feverThreshold: 100,
     };
 
     this.state = {
@@ -79,7 +79,6 @@ class PomRunner {
       jumpCount: 0,
       maxJumps: 2,
       groundY: 0,
-      // アニメーション用
       frame: 0,
       animTimer: 0,
       wasOnGround: true,
@@ -128,6 +127,21 @@ class PomRunner {
   }
 
   init() {
+    // バージョン表記の動的追加 (スタート画面右上)
+    const startScreen = document.getElementById('start-screen');
+    if (startScreen) {
+      const verTag = document.createElement('div');
+      verTag.innerText = this.config.version;
+      verTag.style.position = 'absolute';
+      verTag.style.top = '20px';
+      verTag.style.right = '20px';
+      verTag.style.fontSize = '18px';
+      verTag.style.fontWeight = '900';
+      verTag.style.color = '#5E3A21';
+      verTag.style.opacity = '0.5';
+      startScreen.appendChild(verTag);
+    }
+
     this.playerImage = new Image();
     this.playerImage.src = this.config.playerImagePath;
     this.playerImage.onload = () => {
@@ -200,7 +214,7 @@ class PomRunner {
     this.handleResize();
   }
 
-  // --- 2段ジャンプロジック (v0.4.0を継承) ---
+  // --- handleInput (継承: 変更禁止) ---
   handleInput() {
     if (this.state.isPaused || !this.state.gameStarted || this.state.isGameOver)
       return;
@@ -227,7 +241,6 @@ class PomRunner {
     if (this.state.isPaused || !this.state.gameStarted || this.state.isGameOver)
       return;
 
-    // --- フィーバー管理 ---
     if (this.state.isFever) {
       this.state.feverTimer--;
       if (this.state.feverTimer <= 0) {
@@ -242,10 +255,10 @@ class PomRunner {
     this.state.distance += currentSpeed;
     this.state.score =
       Math.floor(this.state.distance / 10) + this.state.coins * 100;
-    document.getElementById('currentScore').innerText = this.state.score;
+    const scoreUI = document.getElementById('currentScore');
+    if (scoreUI) scoreUI.innerText = this.state.score;
     this.state.gameSpeed += this.config.speedIncrement;
 
-    // --- 物理演算 ---
     this.player.vy += this.config.gravity;
     this.player.y += this.player.vy;
 
@@ -255,8 +268,6 @@ class PomRunner {
       this.player.y = this.player.groundY - this.player.height;
       this.player.vy = 0;
       this.player.jumpCount = 0;
-
-      // 着地演出（土煙）
       if (!this.player.wasOnGround) {
         this.createParticles(
           this.player.x + 50,
@@ -268,18 +279,15 @@ class PomRunner {
     }
     this.player.wasOnGround = isOnGround;
 
-    // --- アニメーション制御 ---
     this.player.animTimer++;
     if (isOnGround) {
       if (this.player.animTimer % 6 === 0) {
         this.player.frame = (this.player.frame + 1) % 4;
       }
     } else {
-      // ジャンプ中フレーム
       this.player.frame = this.player.vy < 0 ? 2 : 3;
     }
 
-    // --- レイヤーとパーティクルの更新 ---
     this.layers.forEach((layer) => {
       layer.x -= currentSpeed * layer.speedFactor;
       if (layer.x <= -1280) layer.x += 1280;
@@ -299,16 +307,25 @@ class PomRunner {
   }
 
   spawnObject() {
-    const type = Math.random() > 0.4 ? 'coin' : 'enemy';
+    const isEnemy = Math.random() < 0.3;
+    const type = isEnemy ? 'enemy' : 'coin';
+
+    // 飛行タイプか地上タイプか (敵のみ)
+    const isFlying = isEnemy && Math.random() > 0.7;
+
     this.gameObjects.push({
       type: type,
+      subtype: isFlying ? 'flying' : 'normal',
       x: this.state.screenWidth + 100,
-      y:
-        type === 'enemy'
-          ? this.player.groundY - 80
-          : this.player.groundY - 150 - Math.random() * 200,
-      width: type === 'enemy' ? 80 : 50,
-      height: type === 'enemy' ? 80 : 50,
+      y: isEnemy
+        ? isFlying
+          ? this.player.groundY - 180
+          : this.player.groundY - 80
+        : this.player.groundY - 150 - Math.random() * 200,
+      width: isEnemy ? 80 : 55,
+      height: isEnemy ? 80 : 55,
+      angle: 0, // コインの回転用
+      baseY: 0, // サインウェーブ用
       collected: false,
     });
   }
@@ -327,6 +344,12 @@ class PomRunner {
       const obj = this.gameObjects[i];
       obj.x -= currentSpeed;
 
+      // 星（コイン）の場合のふわふわアニメーション
+      if (obj.type === 'coin') {
+        obj.angle += 0.1;
+        obj.y += Math.sin(obj.angle) * 2;
+      }
+
       if (
         !obj.collected &&
         pHitbox.x < obj.x + obj.width &&
@@ -337,21 +360,19 @@ class PomRunner {
         if (obj.type === 'coin') {
           obj.collected = true;
           this.state.coins++;
-          this.createParticles(obj.x + 25, obj.y + 25, '#FDE047', 10);
+          this.createParticles(obj.x + 25, obj.y + 25, '#FDE047', 12);
 
-          // フィーバーゲージ加算
           if (!this.state.isFever) {
             this.state.feverGauge += 10;
             if (this.state.feverGauge >= this.config.feverThreshold) {
               this.state.isFever = true;
-              this.state.feverTimer = 300; // 約5秒
+              this.state.feverTimer = 300;
             }
           }
         } else {
-          // 敵との衝突（フィーバー中は無敵）
           if (this.state.isFever) {
             obj.collected = true;
-            this.createParticles(obj.x + 40, obj.y + 40, '#FF4500', 12);
+            this.createParticles(obj.x + 40, obj.y + 40, '#FF4500', 15);
           } else {
             this.gameOver();
           }
@@ -365,33 +386,31 @@ class PomRunner {
   gameOver() {
     this.state.isGameOver = true;
     this.state.isPaused = true;
-    document.getElementById('finalScore').innerText = this.state.score;
+    const finalScoreUI = document.getElementById('finalScore');
+    if (finalScoreUI) finalScoreUI.innerText = this.state.score;
     const goScreen = document.getElementById('gameover-screen');
-    goScreen.classList.remove('hidden');
-    setTimeout(() => goScreen.classList.add('opacity-100'), 10);
+    if (goScreen) {
+      goScreen.classList.remove('hidden');
+      setTimeout(() => goScreen.classList.add('opacity-100'), 10);
+    }
   }
 
   draw() {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // 1. 背景レイヤー (Frontまで)
     for (let i = 0; i < 3; i++) {
       this.drawParallaxLayer(this.layers[i]);
     }
 
-    // フィーバー時の背景エフェクト
     if (this.state.isFever) {
-      this.ctx.fillStyle = 'rgba(255, 224, 71, 0.1)';
+      this.ctx.fillStyle = 'rgba(255, 224, 71, 0.15)';
       this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
-    // 2. パーティクル
     this.particles.forEach((p) => p.draw(this.ctx));
 
-    // 3. プレイヤー (スプライト対応)
     if (this.images.player) {
       const img = this.playerImage;
-      // スプライトシート（横に4枚並んでいると仮定）かどうかの判定
       const isSprite = img.width >= this.player.width * 4;
       if (isSprite) {
         const sw = img.width / 4;
@@ -416,16 +435,18 @@ class PomRunner {
           this.player.height,
         );
       }
-      // フィーバー中のオーラ
       if (this.state.isFever) {
+        this.ctx.shadowBlur = 20;
+        this.ctx.shadowColor = '#FDE047';
         this.ctx.strokeStyle = '#FDE047';
-        this.ctx.lineWidth = 5;
+        this.ctx.lineWidth = 4;
         this.ctx.strokeRect(
           this.player.x,
           this.player.y,
           this.player.width,
           this.player.height,
         );
+        this.ctx.shadowBlur = 0;
       }
     } else {
       this.ctx.fillStyle = this.state.isFever ? '#FF4500' : '#FDE047';
@@ -437,10 +458,7 @@ class PomRunner {
       );
     }
 
-    // 4. 地面 (プレイヤーより手前に描画し、足元が少し重なるようにする)
     this.drawParallaxLayer(this.layers[3]);
-
-    // 5. オブジェクト (コイン・敵)
     this.drawObjects();
   }
 
@@ -448,7 +466,21 @@ class PomRunner {
     this.gameObjects.forEach((obj) => {
       const img = obj.type === 'coin' ? this.coinImg : this.enemyImg;
       if (img.complete && img.width > 0) {
-        this.ctx.drawImage(img, obj.x, obj.y, obj.width, obj.height);
+        // 星（コイン）にグロー効果を追加
+        if (obj.type === 'coin') {
+          this.ctx.save();
+          this.ctx.shadowBlur = 15;
+          this.ctx.shadowColor = 'rgba(253, 224, 71, 0.8)';
+          this.ctx.drawImage(img, obj.x, obj.y, obj.width, obj.height);
+          this.ctx.restore();
+        } else {
+          // 飛行エネミーの場合、少し上下に揺らす
+          const drawY =
+            obj.subtype === 'flying'
+              ? obj.y + Math.sin(this.player.animTimer * 0.1) * 10
+              : obj.y;
+          this.ctx.drawImage(img, obj.x, drawY, obj.width, obj.height);
+        }
       } else {
         this.ctx.fillStyle = obj.type === 'coin' ? '#FDE047' : '#FF0000';
         this.ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
@@ -460,7 +492,7 @@ class PomRunner {
     const img = layer.img;
     const isGround = layer.id === 'ground';
     const drawY = isGround ? this.player.groundY : 0;
-    const drawHeight = isGround ? 110 : this.canvas.height; // 地面を少し高くして重なりを強調
+    const drawHeight = isGround ? 110 : this.canvas.height;
     if (img.complete && img.width > 0) {
       const loopWidth = img.width;
       this.ctx.drawImage(img, layer.x, drawY, loopWidth, drawHeight);

@@ -1,0 +1,101 @@
+/* 全体背景と基本フォント設定 */
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #FFFDEB; /* スイカゲーム風の背景色に変更 */
+    touch-action: none;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    user-select: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    height: 100dvh;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ゲーム画面を中央に配置するためのラッパー */
+#game-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background-color: #333;
+}
+
+/* ゲーム盤面の固定サイズとスケーリング基準（横長アクション用） */
+#game-container {
+    position: relative;
+    transform-origin: center center;
+    width: 800px;
+    height: 450px;
+    flex-shrink: 0;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    background-color: #87CEEB;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* プレミアムな影付きテキスト */
+.text-shadow-premium {
+    text-shadow: 3px 3px 0 #FFF, -3px -3px 0 #FFF, 3px -3px 0 #FFF, -3px 3px 0 #FFF, 0px 6px 10px rgba(94, 58, 33, 0.3);
+}
+
+/* ふわふわ動くアニメーション */
+.float-anim {
+    animation: float 3s ease-in-out infinite;
+}
+@keyframes float {
+    0%, 100% { transform: translateY(0px) rotate(-2deg); }
+    50% { transform: translateY(-12px) rotate(2deg); }
+}
+
+/* 横画面表示の強制用スタイル */
+#orientation-screen {
+    display: none; /* デフォルトは非表示 */
+    position: fixed;
+    inset: 0;
+    background-color: #FFFDEB;
+    z-index: 9999;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+/* スマホかつ縦向きの場合に表示 */
+@media screen and (max-width: 1024px) and (orientation: portrait) {
+    #orientation-screen {
+        display: flex;
+    }
+}
+
+.msg-box {
+    text-align: center;
+    font-weight: 900;
+    color: #5E3A21;
+    font-size: 1.5rem;
+}
+
+.rotate-icon {
+    font-size: 3rem;
+    margin-top: 1rem;
+    animation: rotate-anim 2s infinite;
+}
+
+@keyframes rotate-anim {
+    0% { transform: rotate(0deg); }
+    50% { transform: rotate(90deg); }
+    100% { transform: rotate(90deg); }
+}
+
+.hidden {
+    display: none !important;
+}

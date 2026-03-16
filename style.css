@@ -116,3 +116,19 @@ body, html {
     right: 15px;
     color: #fff;
 }
+
+/* スコア表示用（キャンバス描画の基準スタイルとして定義） */
+.game-ui-overlay {
+    pointer-events: none;
+}
+
+/* ゲームオーバー時の警告色アニメーション */
+@keyframes game-over-flash {
+    0% { background-color: rgba(255, 0, 0, 0); }
+    50% { background-color: rgba(255, 0, 0, 0.3); }
+    100% { background-color: rgba(255, 0, 0, 0); }
+}
+
+.game-over-active {
+    animation: game-over-flash 0.5s ease-out;
+}

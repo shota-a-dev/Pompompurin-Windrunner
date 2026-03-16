@@ -11,26 +11,29 @@
 body, html {
     width: 100%;
     /* モバイルChromeのアドレスバー対策：jsで設定する--vh変数を使用 */
-    height: 100vh;
+    height: 100%;
     height: calc(var(--vh, 1vh) * 100);
     overflow: hidden;
-    background-color: #000;
-    font-family: 'Arial', sans-serif;
+    background-color: #87CEEB; /* 背景色を空の色にして隙間を目立たなくする */
+    position: fixed; /* スクロールを完全に防止 */
 }
 
 #game-container {
-    position: relative;
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
-    overflow: hidden;
+    background-color: #000;
 }
 
 #game-canvas {
-    background-color: #87CEEB;
-    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 /* 縦画面時の警告表示 */

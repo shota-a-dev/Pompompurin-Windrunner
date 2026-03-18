@@ -37,7 +37,7 @@ class PomRunner {
   constructor() {
     this.config = {
       baseHeight: 720,
-      version: 'v0.6.0',
+      version: 'v0.7.0',
       playerImagePath: 'assets/image/player.png',
       assets: {
         bgBack: 'assets/image/bg_back.png',

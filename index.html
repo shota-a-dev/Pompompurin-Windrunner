@@ -23,7 +23,8 @@
 
         <div id="start-screen" class="absolute inset-0 flex flex-col items-center justify-center bg-[#87CEEB]/80 backdrop-blur-sm z-[300] transition-opacity duration-500">
           <div class="bg-white p-10 rounded-[3rem] shadow-2xl text-center border-8 border-[#FDE047] max-w-lg w-11/12">
-            <h1 class="text-5xl font-black text-[#5E3A21] mb-8 tracking-tighter shadow-sm">ポムランナー</h1>
+            <h1 class="text-5xl font-black text-[#5E3A21] mb-6 tracking-tighter shadow-sm">ポムランナー</h1>
+            <p class="text-xl font-bold mb-6 text-[#5E3A21]">BEST SCORE: <span id="startBestScore" class="text-orange-500">0</span></p>
             <button id="start-btn" class="bg-[#FDE047] text-[#5E3A21] text-2xl font-black py-5 px-16 rounded-full shadow-[0_8px_0_#D4B106] hover:translate-y-1 hover:shadow-[0_4px_0_#D4B106] active:translate-y-2 active:shadow-none transition-all">
               START
             </button>
@@ -33,7 +34,8 @@
 
         <div id="gameover-screen" class="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-500 z-[400] hidden">
           <div class="bg-white p-8 rounded-[3rem] shadow-2xl text-center border-8 border-[#5E3A21] w-11/12 max-w-sm">
-            <h2 class="text-3xl font-black mb-4 text-red-500">GAME OVER</h2>
+            <img id="resultImage" src="" alt="Result" class="w-32 h-32 object-contain mx-auto mb-2 hidden" />
+            <h2 id="resultTitle" class="text-3xl font-black mb-4 text-red-500">GAME OVER</h2>
             <div class="mb-6">
               <p class="text-gray-500 font-bold mb-1 uppercase tracking-widest text-xs">Final Score</p>
               <p id="finalScore" class="text-6xl font-black text-orange-500">0</p>

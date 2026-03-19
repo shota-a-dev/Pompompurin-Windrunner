@@ -1,7 +1,8 @@
 /**
  * Pom Runner - Main Game Script
- * Version: v0.8.0
+ * Version: v0.9.0
  * 修正: 画像ロード待ち、キャラサイズ拡大、コイン連続配置、敵画像の使い分け
+ * 追加: BGM/SE追加、背景ループの修正、ベストスコア保存、リザルト画像の出し分け
  */
 
 // --- 演出用パーティクルクラス ---
@@ -37,7 +38,7 @@ class PomRunner {
   constructor() {
     this.config = {
       baseHeight: 720,
-      version: 'v0.9.0',
+      version: 'v0.1.0',
       playerImagePath: 'assets/image/player.png',
       assets: {
         bgBack: 'assets/image/bg_back.png',
@@ -46,7 +47,16 @@ class PomRunner {
         ground: 'assets/image/ground.png',
         coin: 'assets/image/coin.png',
         enemy: 'assets/image/enemy_land.png',
-        enemyFly: 'assets/image/enemy_fly.png', // 修正: 飛行用エネミー画像を追加
+        enemyFly: 'assets/image/enemy_fly.png',
+        purinBest: 'assets/image/purin_update_best.png', // 追加: ベスト更新画像
+        purinGameOver: 'assets/image/purin_gameover.png', // 追加: ゲームオーバー画像
+      },
+      // 追加: 音声ファイルのパス設定
+      sounds: {
+        bgm: 'assets/audio/bgm.mp3',
+        coin: 'assets/audio/coin.mp3',
+        gameover: 'assets/audio/gameover.mp3',
+        highscore: 'assets/audio/highscore.mp3',
       },
       gravity: 0.8,
       jumpPower: -18,
@@ -74,8 +84,8 @@ class PomRunner {
     this.player = {
       x: 150,
       y: 0,
-      width: 120, // 修正: 100 -> 120 に拡大
-      height: 120, // 修正: 100 -> 120 に拡大
+      width: 120,
+      height: 120,
       vy: 0,
       jumpCount: 0,
       maxJumps: 2,
@@ -124,12 +134,19 @@ class PomRunner {
     this.ctx = this.canvas.getContext('2d');
 
     this.images = {};
+    this.audio = {}; // 追加: 音声オブジェクト格納用
+
+    // 追加: ローカルストレージから自己ベストを取得
+    this.bestScore = parseInt(localStorage.getItem('pomRunnerBestScore')) || 0;
+
     this.init();
   }
 
-  // 修正: async に変更し、画像のロード完了を待つようにする
   async init() {
-    // バージョン表記の動的追加 (スタート画面右上)
+    // 自己ベストをスタート画面に反映
+    const startBestUI = document.getElementById('startBestScore');
+    if (startBestUI) startBestUI.innerText = this.bestScore;
+
     const startScreen = document.getElementById('start-screen');
     if (startScreen) {
       const verTag = document.createElement('div');
@@ -144,7 +161,16 @@ class PomRunner {
       startScreen.appendChild(verTag);
     }
 
-    // --- 修正: 画像のロードをPromiseで待機する仕組み ---
+    // --- 音声の初期化 ---
+    for (const [key, path] of Object.entries(this.config.sounds)) {
+      this.audio[key] = new Audio(path);
+      if (key === 'bgm') {
+        this.audio[key].loop = true;
+        this.audio[key].volume = 0.5; // BGMの音量は少し下げる
+      }
+    }
+
+    // --- 画像のロードをPromiseで待機 ---
     const loadPromises = [];
 
     const loadImage = (imgObj, src) => {
@@ -172,12 +198,16 @@ class PomRunner {
     this.enemyImg = new Image();
     loadPromises.push(loadImage(this.enemyImg, this.config.assets.enemy));
 
-    this.enemyFlyImg = new Image(); // 修正: 飛行用画像の読み込み追加
+    this.enemyFlyImg = new Image();
     loadPromises.push(loadImage(this.enemyFlyImg, this.config.assets.enemyFly));
 
-    // 全ての画像のロードが完了するまで待機
+    // 結果画面用の画像もラグ防止のためプリロードしておく
+    const imgBest = new Image();
+    loadPromises.push(loadImage(imgBest, this.config.assets.purinBest));
+    const imgGameOver = new Image();
+    loadPromises.push(loadImage(imgGameOver, this.config.assets.purinGameOver));
+
     await Promise.all(loadPromises);
-    // ---------------------------------------------------
 
     window.addEventListener('resize', () => this.handleResize());
     this.handleResize();
@@ -208,7 +238,6 @@ class PomRunner {
     this.player.groundY = this.config.baseHeight - 100;
     this.player.y = this.player.groundY - this.player.height;
 
-    // 画像のロード完了後にゲームループを開始
     this.gameLoop();
   }
 
@@ -232,6 +261,15 @@ class PomRunner {
         await screen.orientation.lock('landscape').catch(() => {});
       }
     } catch (err) {}
+
+    // 追加: BGMの再生を開始
+    if (this.audio.bgm) {
+      this.audio.bgm.currentTime = 0;
+      this.audio.bgm
+        .play()
+        .catch((err) => console.log('Audio autoplay prevented'));
+    }
+
     document.getElementById('start-screen').classList.add('hidden');
     this.state.gameStarted = true;
     this.state.isPaused = false;
@@ -313,7 +351,10 @@ class PomRunner {
 
     this.layers.forEach((layer) => {
       layer.x -= currentSpeed * layer.speedFactor;
-      if (layer.x <= -1280) layer.x += 1280;
+      // 修正: プレイ中も背景が途切れないよう、固定値ではなく画像の幅に合わせてループさせる
+      const loopWidth =
+        layer.img && layer.img.width > 0 ? layer.img.width : 1280;
+      if (layer.x <= -loopWidth) layer.x += loopWidth;
     });
 
     for (let i = this.particles.length - 1; i >= 0; i--) {
@@ -338,31 +379,29 @@ class PomRunner {
         type: 'enemy',
         subtype: isFlying ? 'flying' : 'normal',
         x: this.state.screenWidth + 100,
-        // 修正: 敵のサイズを大きくしたのでY座標を微調整
         y: isFlying ? this.player.groundY - 180 : this.player.groundY - 100,
-        width: 100, // 修正: 80 -> 100 に拡大
-        height: 100, // 修正: 80 -> 100 に拡大
+        width: 100,
+        height: 100,
         angle: 0,
         baseY: 0,
         collected: false,
       });
     } else {
-      // 修正: コインを連続して配置する
-      const coinCount = Math.floor(Math.random() * 3) + 3; // 3個から5個を連続配置
+      const coinCount = Math.floor(Math.random() * 3) + 3;
       const baseX = this.state.screenWidth + 100;
       const baseY = this.player.groundY - 150 - Math.random() * 200;
 
       for (let i = 0; i < coinCount; i++) {
-        const offsetY = Math.sin(i * 0.5) * 30; // 連続して波打つように配置
+        const offsetY = Math.sin(i * 0.5) * 30;
         this.gameObjects.push({
           type: 'coin',
           subtype: 'normal',
-          x: baseX + i * 60, // 60px間隔で横に並べる
+          x: baseX + i * 60,
           y: baseY + offsetY,
           width: 55,
           height: 55,
-          angle: i * 0.5, // アニメーションの初期位相をずらす
-          baseY: baseY + offsetY, // 中心となるY座標を保持
+          angle: i * 0.5,
+          baseY: baseY + offsetY,
           collected: false,
         });
       }
@@ -383,10 +422,8 @@ class PomRunner {
       const obj = this.gameObjects[i];
       obj.x -= currentSpeed;
 
-      // 星（コイン）の場合のふわふわアニメーション
       if (obj.type === 'coin') {
         obj.angle += 0.1;
-        // 修正: 波打ちながら進むように、baseY を基準に計算する
         obj.y = obj.baseY + Math.sin(obj.angle) * 10;
       }
 
@@ -401,6 +438,12 @@ class PomRunner {
           obj.collected = true;
           this.state.coins++;
           this.createParticles(obj.x + 25, obj.y + 25, '#FDE047', 12);
+
+          // 追加: コイン取得音の再生
+          if (this.audio.coin) {
+            this.audio.coin.currentTime = 0;
+            this.audio.coin.play().catch(() => {});
+          }
 
           if (!this.state.isFever) {
             this.state.feverGauge += 10;
@@ -426,8 +469,46 @@ class PomRunner {
   gameOver() {
     this.state.isGameOver = true;
     this.state.isPaused = true;
+
+    // 追加: BGM停止
+    if (this.audio.bgm) this.audio.bgm.pause();
+
+    // 追加: 自己ベストの判定と保存
+    const isNewBest = this.state.score > this.bestScore;
+    if (isNewBest) {
+      this.bestScore = this.state.score;
+      localStorage.setItem('pomRunnerBestScore', this.bestScore);
+      if (this.audio.highscore) {
+        this.audio.highscore.currentTime = 0;
+        this.audio.highscore.play().catch(() => {});
+      }
+    } else {
+      if (this.audio.gameover) {
+        this.audio.gameover.currentTime = 0;
+        this.audio.gameover.play().catch(() => {});
+      }
+    }
+
     const finalScoreUI = document.getElementById('finalScore');
     if (finalScoreUI) finalScoreUI.innerText = this.state.score;
+
+    // 追加: 画像とテキストの出し分け
+    const resultImage = document.getElementById('resultImage');
+    const resultTitle = document.getElementById('resultTitle');
+
+    if (resultImage) {
+      resultImage.src = isNewBest
+        ? this.config.assets.purinBest
+        : this.config.assets.purinGameOver;
+      resultImage.classList.remove('hidden');
+    }
+    if (resultTitle) {
+      resultTitle.innerText = isNewBest ? 'NEW RECORD!' : 'GAME OVER';
+      resultTitle.className = isNewBest
+        ? 'text-3xl font-black mb-4 text-orange-500'
+        : 'text-3xl font-black mb-4 text-red-500';
+    }
+
     const goScreen = document.getElementById('gameover-screen');
     if (goScreen) {
       goScreen.classList.remove('hidden');
@@ -504,7 +585,6 @@ class PomRunner {
 
   drawObjects() {
     this.gameObjects.forEach((obj) => {
-      // 修正: subtype に応じて空と地上の敵画像を使い分ける
       let img;
       if (obj.type === 'coin') {
         img = this.coinImg;
@@ -513,7 +593,6 @@ class PomRunner {
       }
 
       if (img && img.complete && img.width > 0) {
-        // 星（コイン）にグロー効果を追加
         if (obj.type === 'coin') {
           this.ctx.save();
           this.ctx.shadowBlur = 15;
@@ -521,7 +600,6 @@ class PomRunner {
           this.ctx.drawImage(img, obj.x, obj.y, obj.width, obj.height);
           this.ctx.restore();
         } else {
-          // 飛行エネミーの場合、少し上下に揺らす
           const drawY =
             obj.subtype === 'flying'
               ? obj.y + Math.sin(this.player.animTimer * 0.1) * 10

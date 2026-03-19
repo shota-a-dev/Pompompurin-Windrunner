@@ -78,8 +78,8 @@ class Player {
   constructor(config) {
     this.x = 150;
     this.y = 0;
-    this.width = 140;
-    this.height = 140;
+    this.width = 170;
+    this.height = 170;
     this.vy = 0;
     this.jumpCount = 0;
     this.maxJumps = 2;

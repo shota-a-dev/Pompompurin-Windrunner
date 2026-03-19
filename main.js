@@ -1,7 +1,7 @@
 /**
  * Pom Runner - Main Game Script
- * Version: v0.6.0
- * 修正: スタート画面Ver表記、障害物/星のバリエーション強化、演出向上
+ * Version: v0.8.0
+ * 修正: 画像ロード待ち、キャラサイズ拡大、コイン連続配置、敵画像の使い分け
  */
 
 // --- 演出用パーティクルクラス ---
@@ -37,7 +37,7 @@ class PomRunner {
   constructor() {
     this.config = {
       baseHeight: 720,
-      version: 'v0.8.0',
+      version: 'v0.9.0',
       playerImagePath: 'assets/image/player.png',
       assets: {
         bgBack: 'assets/image/bg_back.png',
@@ -46,6 +46,7 @@ class PomRunner {
         ground: 'assets/image/ground.png',
         coin: 'assets/image/coin.png',
         enemy: 'assets/image/enemy_land.png',
+        enemyFly: 'assets/image/enemy_fly.png', // 修正: 飛行用エネミー画像を追加
       },
       gravity: 0.8,
       jumpPower: -18,
@@ -73,8 +74,8 @@ class PomRunner {
     this.player = {
       x: 150,
       y: 0,
-      width: 100,
-      height: 100,
+      width: 120, // 修正: 100 -> 120 に拡大
+      height: 120, // 修正: 100 -> 120 に拡大
       vy: 0,
       jumpCount: 0,
       maxJumps: 2,
@@ -126,7 +127,8 @@ class PomRunner {
     this.init();
   }
 
-  init() {
+  // 修正: async に変更し、画像のロード完了を待つようにする
+  async init() {
     // バージョン表記の動的追加 (スタート画面右上)
     const startScreen = document.getElementById('start-screen');
     if (startScreen) {
@@ -142,19 +144,40 @@ class PomRunner {
       startScreen.appendChild(verTag);
     }
 
-    this.playerImage = new Image();
-    this.playerImage.src = this.config.playerImagePath;
-    this.playerImage.onload = () => {
-      this.images.player = true;
+    // --- 修正: 画像のロードをPromiseで待機する仕組み ---
+    const loadPromises = [];
+
+    const loadImage = (imgObj, src) => {
+      return new Promise((resolve) => {
+        imgObj.src = src;
+        imgObj.onload = () => resolve();
+        imgObj.onerror = () => resolve(); // エラーが起きても進行を止めない
+      });
     };
 
+    this.playerImage = new Image();
+    loadPromises.push(
+      loadImage(this.playerImage, this.config.playerImagePath).then(() => {
+        this.images.player = true;
+      }),
+    );
+
     this.layers.forEach((layer) => {
-      layer.img.src = this.config.assets[layer.id];
+      loadPromises.push(loadImage(layer.img, this.config.assets[layer.id]));
     });
+
     this.coinImg = new Image();
-    this.coinImg.src = this.config.assets.coin;
+    loadPromises.push(loadImage(this.coinImg, this.config.assets.coin));
+
     this.enemyImg = new Image();
-    this.enemyImg.src = this.config.assets.enemy;
+    loadPromises.push(loadImage(this.enemyImg, this.config.assets.enemy));
+
+    this.enemyFlyImg = new Image(); // 修正: 飛行用画像の読み込み追加
+    loadPromises.push(loadImage(this.enemyFlyImg, this.config.assets.enemyFly));
+
+    // 全ての画像のロードが完了するまで待機
+    await Promise.all(loadPromises);
+    // ---------------------------------------------------
 
     window.addEventListener('resize', () => this.handleResize());
     this.handleResize();
@@ -185,6 +208,7 @@ class PomRunner {
     this.player.groundY = this.config.baseHeight - 100;
     this.player.y = this.player.groundY - this.player.height;
 
+    // 画像のロード完了後にゲームループを開始
     this.gameLoop();
   }
 
@@ -214,7 +238,6 @@ class PomRunner {
     this.handleResize();
   }
 
-  // --- handleInput (継承: 変更禁止) ---
   handleInput() {
     if (this.state.isPaused || !this.state.gameStarted || this.state.isGameOver)
       return;
@@ -308,26 +331,42 @@ class PomRunner {
 
   spawnObject() {
     const isEnemy = Math.random() < 0.3;
-    const type = isEnemy ? 'enemy' : 'coin';
 
-    // 飛行タイプか地上タイプか (敵のみ)
-    const isFlying = isEnemy && Math.random() > 0.7;
+    if (isEnemy) {
+      const isFlying = Math.random() > 0.7;
+      this.gameObjects.push({
+        type: 'enemy',
+        subtype: isFlying ? 'flying' : 'normal',
+        x: this.state.screenWidth + 100,
+        // 修正: 敵のサイズを大きくしたのでY座標を微調整
+        y: isFlying ? this.player.groundY - 180 : this.player.groundY - 100,
+        width: 100, // 修正: 80 -> 100 に拡大
+        height: 100, // 修正: 80 -> 100 に拡大
+        angle: 0,
+        baseY: 0,
+        collected: false,
+      });
+    } else {
+      // 修正: コインを連続して配置する
+      const coinCount = Math.floor(Math.random() * 3) + 3; // 3個から5個を連続配置
+      const baseX = this.state.screenWidth + 100;
+      const baseY = this.player.groundY - 150 - Math.random() * 200;
 
-    this.gameObjects.push({
-      type: type,
-      subtype: isFlying ? 'flying' : 'normal',
-      x: this.state.screenWidth + 100,
-      y: isEnemy
-        ? isFlying
-          ? this.player.groundY - 180
-          : this.player.groundY - 80
-        : this.player.groundY - 150 - Math.random() * 200,
-      width: isEnemy ? 80 : 55,
-      height: isEnemy ? 80 : 55,
-      angle: 0, // コインの回転用
-      baseY: 0, // サインウェーブ用
-      collected: false,
-    });
+      for (let i = 0; i < coinCount; i++) {
+        const offsetY = Math.sin(i * 0.5) * 30; // 連続して波打つように配置
+        this.gameObjects.push({
+          type: 'coin',
+          subtype: 'normal',
+          x: baseX + i * 60, // 60px間隔で横に並べる
+          y: baseY + offsetY,
+          width: 55,
+          height: 55,
+          angle: i * 0.5, // アニメーションの初期位相をずらす
+          baseY: baseY + offsetY, // 中心となるY座標を保持
+          collected: false,
+        });
+      }
+    }
   }
 
   updateObjects(currentSpeed) {
@@ -347,7 +386,8 @@ class PomRunner {
       // 星（コイン）の場合のふわふわアニメーション
       if (obj.type === 'coin') {
         obj.angle += 0.1;
-        obj.y += Math.sin(obj.angle) * 2;
+        // 修正: 波打ちながら進むように、baseY を基準に計算する
+        obj.y = obj.baseY + Math.sin(obj.angle) * 10;
       }
 
       if (
@@ -464,8 +504,15 @@ class PomRunner {
 
   drawObjects() {
     this.gameObjects.forEach((obj) => {
-      const img = obj.type === 'coin' ? this.coinImg : this.enemyImg;
-      if (img.complete && img.width > 0) {
+      // 修正: subtype に応じて空と地上の敵画像を使い分ける
+      let img;
+      if (obj.type === 'coin') {
+        img = this.coinImg;
+      } else {
+        img = obj.subtype === 'flying' ? this.enemyFlyImg : this.enemyImg;
+      }
+
+      if (img && img.complete && img.width > 0) {
         // 星（コイン）にグロー効果を追加
         if (obj.type === 'coin') {
           this.ctx.save();

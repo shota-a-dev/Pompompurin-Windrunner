@@ -1,8 +1,6 @@
 /**
  * Pom Runner - Main Game Script
- * Version: v0.9.0
- * 修正: 画像ロード待ち、キャラサイズ拡大、コイン連続配置、敵画像の使い分け
- * 追加: BGM/SE追加、背景ループの修正、ベストスコア保存、リザルト画像の出し分け
+ * Version: v0.9.0 (Refactored)
  */
 
 // --- 演出用パーティクルクラス ---
@@ -34,11 +32,223 @@ class Particle {
   }
 }
 
+// --- 背景レイヤークラス ---
+class BackgroundLayer {
+  constructor(id, speedFactor, color, img) {
+    this.id = id;
+    this.x = 0;
+    this.speedFactor = speedFactor;
+    this.color = color;
+    this.img = img;
+  }
+
+  update(speed) {
+    this.x -= speed * this.speedFactor;
+    const loopWidth = this.img && this.img.width > 0 ? this.img.width : 1280;
+    if (this.x <= -loopWidth) this.x += loopWidth;
+  }
+
+  draw(ctx, canvasWidth, canvasHeight, groundY) {
+    const isGround = this.id === 'ground';
+    const drawY = isGround ? groundY : 0;
+    const drawHeight = isGround ? 110 : canvasHeight;
+
+    if (this.img.complete && this.img.width > 0) {
+      const loopWidth = this.img.width;
+      ctx.drawImage(this.img, this.x, drawY, loopWidth, drawHeight);
+      ctx.drawImage(this.img, this.x + loopWidth, drawY, loopWidth, drawHeight);
+      if (this.x + loopWidth < canvasWidth) {
+        ctx.drawImage(
+          this.img,
+          this.x + loopWidth * 2,
+          drawY,
+          loopWidth,
+          drawHeight,
+        );
+      }
+    } else {
+      ctx.fillStyle = this.color;
+      ctx.fillRect(0, drawY, canvasWidth, drawHeight);
+    }
+  }
+}
+
+// --- プレイヤークラス ---
+class Player {
+  constructor(config) {
+    this.x = 150;
+    this.y = 0;
+    this.width = 120;
+    this.height = 120;
+    this.vy = 0;
+    this.jumpCount = 0;
+    this.maxJumps = 2;
+    this.groundY = config.baseHeight - 100;
+    this.frame = 0;
+    this.animTimer = 0;
+    this.wasOnGround = true;
+    this.config = config;
+
+    // 初期位置の設定
+    this.y = this.groundY - this.height;
+  }
+
+  jump() {
+    if (this.jumpCount < this.maxJumps) {
+      this.vy = this.config.jumpPower;
+      this.jumpCount++;
+    }
+  }
+
+  update(createParticles) {
+    this.vy += this.config.gravity;
+    this.y += this.vy;
+
+    const isOnGround = this.y + this.height >= this.groundY;
+    if (isOnGround) {
+      this.y = this.groundY - this.height;
+      this.vy = 0;
+      this.jumpCount = 0;
+      if (!this.wasOnGround) {
+        // 着地パーティクル
+        createParticles(this.x + 50, this.groundY, '#D2B48C', 5);
+      }
+    }
+    this.wasOnGround = isOnGround;
+
+    this.animTimer++;
+    if (isOnGround) {
+      if (this.animTimer % 6 === 0) {
+        this.frame = (this.frame + 1) % 4;
+      }
+    } else {
+      this.frame = this.vy < 0 ? 2 : 3;
+    }
+  }
+
+  draw(ctx, playerImage, isFever) {
+    if (playerImage && playerImage.complete) {
+      const isSprite = playerImage.width >= this.width * 4;
+      if (isSprite) {
+        const sw = playerImage.width / 4;
+        const sh = playerImage.height;
+        ctx.drawImage(
+          playerImage,
+          this.frame * sw,
+          0,
+          sw,
+          sh,
+          this.x,
+          this.y,
+          this.width,
+          this.height,
+        );
+      } else {
+        ctx.drawImage(playerImage, this.x, this.y, this.width, this.height);
+      }
+
+      if (isFever) {
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = '#FDE047';
+        ctx.strokeStyle = '#FDE047';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(this.x, this.y, this.width, this.height);
+        ctx.shadowBlur = 0;
+      }
+    } else {
+      ctx.fillStyle = isFever ? '#FF4500' : '#FDE047';
+      ctx.fillRect(this.x, this.y, this.width, this.height);
+    }
+  }
+
+  getHitbox() {
+    const pPaddingX = 20;
+    const pPaddingY = 15;
+    return {
+      x: this.x + pPaddingX,
+      y: this.y + pPaddingY,
+      w: this.width - pPaddingX * 2,
+      h: this.height - pPaddingY * 2,
+    };
+  }
+}
+
+// --- ゲームオブジェクト（基底） ---
+class GameObject {
+  constructor(x, y, width, height, type) {
+    this.x = x;
+    this.y = y;
+    this.width = width;
+    this.height = height;
+    this.type = type;
+    this.collected = false;
+  }
+
+  update(speed) {
+    this.x -= speed;
+  }
+
+  isOffscreen() {
+    return this.x + this.width < -100;
+  }
+}
+
+// --- コインクラス ---
+class Coin extends GameObject {
+  constructor(x, y, width, height, angle) {
+    super(x, y, width, height, 'coin');
+    this.baseY = y;
+    this.angle = angle;
+  }
+
+  update(speed) {
+    super.update(speed);
+    this.angle += 0.1;
+    this.y = this.baseY + Math.sin(this.angle) * 10;
+  }
+
+  draw(ctx, img) {
+    if (img && img.complete && img.width > 0) {
+      ctx.save();
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = 'rgba(253, 224, 71, 0.8)';
+      ctx.drawImage(img, this.x, this.y, this.width, this.height);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = '#FDE047';
+      ctx.fillRect(this.x, this.y, this.width, this.height);
+    }
+  }
+}
+
+// --- 敵クラス ---
+class Enemy extends GameObject {
+  constructor(x, y, width, height, subtype) {
+    super(x, y, width, height, 'enemy');
+    this.subtype = subtype; // 'normal' or 'flying'
+  }
+
+  draw(ctx, imgNormal, imgFly, animTimer) {
+    const img = this.subtype === 'flying' ? imgFly : imgNormal;
+    if (img && img.complete && img.width > 0) {
+      const drawY =
+        this.subtype === 'flying'
+          ? this.y + Math.sin(animTimer * 0.1) * 10
+          : this.y;
+      ctx.drawImage(img, this.x, drawY, this.width, this.height);
+    } else {
+      ctx.fillStyle = '#FF0000';
+      ctx.fillRect(this.x, this.y, this.width, this.height);
+    }
+  }
+}
+
+// --- メインゲームエンジン ---
 class PomRunner {
   constructor() {
     this.config = {
       baseHeight: 720,
-      version: 'v0.1.0',
+      version: 'v0.9.0',
       playerImagePath: 'assets/image/player.png',
       assets: {
         bgBack: 'assets/image/bg_back.png',
@@ -48,10 +258,9 @@ class PomRunner {
         coin: 'assets/image/coin.png',
         enemy: 'assets/image/enemy_land.png',
         enemyFly: 'assets/image/enemy_fly.png',
-        purinBest: 'assets/image/purin_update_best.png', // 追加: ベスト更新画像
-        purinGameOver: 'assets/image/purin_gameover.png', // 追加: ゲームオーバー画像
+        purinBest: 'assets/image/purin_update_best.png',
+        purinGameOver: 'assets/image/purin_gameover.png',
       },
-      // 追加: 音声ファイルのパス設定
       sounds: {
         bgm: 'assets/audio/bgm.mp3',
         coin: 'assets/audio/coin.mp3',
@@ -81,49 +290,13 @@ class PomRunner {
       feverTimer: 0,
     };
 
-    this.player = {
-      x: 150,
-      y: 0,
-      width: 120,
-      height: 120,
-      vy: 0,
-      jumpCount: 0,
-      maxJumps: 2,
-      groundY: 0,
-      frame: 0,
-      animTimer: 0,
-      wasOnGround: true,
-    };
+    this.player = new Player(this.config);
 
     this.layers = [
-      {
-        id: 'bgBack',
-        x: 0,
-        speedFactor: 0.1,
-        color: '#4A90E2',
-        img: new Image(),
-      },
-      {
-        id: 'bgMid',
-        x: 0,
-        speedFactor: 0.3,
-        color: '#63A4FF',
-        img: new Image(),
-      },
-      {
-        id: 'bgFront',
-        x: 0,
-        speedFactor: 0.6,
-        color: '#83B9FF',
-        img: new Image(),
-      },
-      {
-        id: 'ground',
-        x: 0,
-        speedFactor: 1.0,
-        color: '#8B4513',
-        img: new Image(),
-      },
+      new BackgroundLayer('bgBack', 0.1, '#4A90E2', new Image()),
+      new BackgroundLayer('bgMid', 0.3, '#63A4FF', new Image()),
+      new BackgroundLayer('bgFront', 0.6, '#83B9FF', new Image()),
+      new BackgroundLayer('ground', 1.0, '#8B4513', new Image()),
     ];
 
     this.gameObjects = [];
@@ -134,16 +307,13 @@ class PomRunner {
     this.ctx = this.canvas.getContext('2d');
 
     this.images = {};
-    this.audio = {}; // 追加: 音声オブジェクト格納用
-
-    // 追加: ローカルストレージから自己ベストを取得
+    this.audio = {};
     this.bestScore = parseInt(localStorage.getItem('pomRunnerBestScore')) || 0;
 
     this.init();
   }
 
   async init() {
-    // 自己ベストをスタート画面に反映
     const startBestUI = document.getElementById('startBestScore');
     if (startBestUI) startBestUI.innerText = this.bestScore;
 
@@ -161,23 +331,20 @@ class PomRunner {
       startScreen.appendChild(verTag);
     }
 
-    // --- 音声の初期化 ---
     for (const [key, path] of Object.entries(this.config.sounds)) {
       this.audio[key] = new Audio(path);
       if (key === 'bgm') {
         this.audio[key].loop = true;
-        this.audio[key].volume = 0.5; // BGMの音量は少し下げる
+        this.audio[key].volume = 0.5;
       }
     }
 
-    // --- 画像のロードをPromiseで待機 ---
     const loadPromises = [];
-
     const loadImage = (imgObj, src) => {
       return new Promise((resolve) => {
         imgObj.src = src;
         imgObj.onload = () => resolve();
-        imgObj.onerror = () => resolve(); // エラーが起きても進行を止めない
+        imgObj.onerror = () => resolve();
       });
     };
 
@@ -194,14 +361,11 @@ class PomRunner {
 
     this.coinImg = new Image();
     loadPromises.push(loadImage(this.coinImg, this.config.assets.coin));
-
     this.enemyImg = new Image();
     loadPromises.push(loadImage(this.enemyImg, this.config.assets.enemy));
-
     this.enemyFlyImg = new Image();
     loadPromises.push(loadImage(this.enemyFlyImg, this.config.assets.enemyFly));
 
-    // 結果画面用の画像もラグ防止のためプリロードしておく
     const imgBest = new Image();
     loadPromises.push(loadImage(imgBest, this.config.assets.purinBest));
     const imgGameOver = new Image();
@@ -235,18 +399,14 @@ class PomRunner {
     });
 
     this.state.gameSpeed = this.config.initialGameSpeed;
-    this.player.groundY = this.config.baseHeight - 100;
-    this.player.y = this.player.groundY - this.player.height;
-
     this.gameLoop();
   }
 
   handleResize() {
-    const displayWidth = window.innerWidth;
     const displayHeight = window.innerHeight;
     const scale = displayHeight / this.config.baseHeight;
     this.canvas.height = this.config.baseHeight;
-    this.canvas.width = displayWidth / scale;
+    this.canvas.width = window.innerWidth / scale;
     this.state.screenWidth = this.canvas.width;
     this.state.screenHeight = this.canvas.height;
   }
@@ -262,7 +422,6 @@ class PomRunner {
       }
     } catch (err) {}
 
-    // 追加: BGMの再生を開始
     if (this.audio.bgm) {
       this.audio.bgm.currentTime = 0;
       this.audio.bgm
@@ -279,11 +438,7 @@ class PomRunner {
   handleInput() {
     if (this.state.isPaused || !this.state.gameStarted || this.state.isGameOver)
       return;
-
-    if (this.player.jumpCount < this.player.maxJumps) {
-      this.player.vy = this.config.jumpPower;
-      this.player.jumpCount++;
-    }
+    this.player.jump();
   }
 
   createParticles(x, y, color, count = 8) {
@@ -316,52 +471,26 @@ class PomRunner {
     this.state.distance += currentSpeed;
     this.state.score =
       Math.floor(this.state.distance / 10) + this.state.coins * 100;
+
     const scoreUI = document.getElementById('currentScore');
     if (scoreUI) scoreUI.innerText = this.state.score;
     this.state.gameSpeed += this.config.speedIncrement;
 
-    this.player.vy += this.config.gravity;
-    this.player.y += this.player.vy;
+    // プレイヤー更新
+    this.player.update((x, y, color, count) =>
+      this.createParticles(x, y, color, count),
+    );
 
-    const isOnGround =
-      this.player.y + this.player.height >= this.player.groundY;
-    if (isOnGround) {
-      this.player.y = this.player.groundY - this.player.height;
-      this.player.vy = 0;
-      this.player.jumpCount = 0;
-      if (!this.player.wasOnGround) {
-        this.createParticles(
-          this.player.x + 50,
-          this.player.groundY,
-          '#D2B48C',
-          5,
-        );
-      }
-    }
-    this.player.wasOnGround = isOnGround;
+    // 背景更新
+    this.layers.forEach((layer) => layer.update(currentSpeed));
 
-    this.player.animTimer++;
-    if (isOnGround) {
-      if (this.player.animTimer % 6 === 0) {
-        this.player.frame = (this.player.frame + 1) % 4;
-      }
-    } else {
-      this.player.frame = this.player.vy < 0 ? 2 : 3;
-    }
-
-    this.layers.forEach((layer) => {
-      layer.x -= currentSpeed * layer.speedFactor;
-      // 修正: プレイ中も背景が途切れないよう、固定値ではなく画像の幅に合わせてループさせる
-      const loopWidth =
-        layer.img && layer.img.width > 0 ? layer.img.width : 1280;
-      if (layer.x <= -loopWidth) layer.x += loopWidth;
-    });
-
+    // パーティクル更新
     for (let i = this.particles.length - 1; i >= 0; i--) {
       this.particles[i].update();
       if (this.particles[i].life <= 0) this.particles.splice(i, 1);
     }
 
+    // オブジェクト生成
     this.spawnTimer++;
     if (this.spawnTimer > this.config.spawnInterval) {
       this.spawnObject();
@@ -375,17 +504,13 @@ class PomRunner {
 
     if (isEnemy) {
       const isFlying = Math.random() > 0.7;
-      this.gameObjects.push({
-        type: 'enemy',
-        subtype: isFlying ? 'flying' : 'normal',
-        x: this.state.screenWidth + 100,
-        y: isFlying ? this.player.groundY - 180 : this.player.groundY - 100,
-        width: 100,
-        height: 100,
-        angle: 0,
-        baseY: 0,
-        collected: false,
-      });
+      const subtype = isFlying ? 'flying' : 'normal';
+      const y = isFlying
+        ? this.player.groundY - 180
+        : this.player.groundY - 100;
+      this.gameObjects.push(
+        new Enemy(this.state.screenWidth + 100, y, 100, 100, subtype),
+      );
     } else {
       const coinCount = Math.floor(Math.random() * 3) + 3;
       const baseX = this.state.screenWidth + 100;
@@ -393,39 +518,19 @@ class PomRunner {
 
       for (let i = 0; i < coinCount; i++) {
         const offsetY = Math.sin(i * 0.5) * 30;
-        this.gameObjects.push({
-          type: 'coin',
-          subtype: 'normal',
-          x: baseX + i * 60,
-          y: baseY + offsetY,
-          width: 55,
-          height: 55,
-          angle: i * 0.5,
-          baseY: baseY + offsetY,
-          collected: false,
-        });
+        this.gameObjects.push(
+          new Coin(baseX + i * 60, baseY + offsetY, 55, 55, i * 0.5),
+        );
       }
     }
   }
 
   updateObjects(currentSpeed) {
-    const pPaddingX = 20;
-    const pPaddingY = 15;
-    const pHitbox = {
-      x: this.player.x + pPaddingX,
-      y: this.player.y + pPaddingY,
-      w: this.player.width - pPaddingX * 2,
-      h: this.player.height - pPaddingY * 2,
-    };
+    const pHitbox = this.player.getHitbox();
 
     for (let i = this.gameObjects.length - 1; i >= 0; i--) {
       const obj = this.gameObjects[i];
-      obj.x -= currentSpeed;
-
-      if (obj.type === 'coin') {
-        obj.angle += 0.1;
-        obj.y = obj.baseY + Math.sin(obj.angle) * 10;
-      }
+      obj.update(currentSpeed);
 
       if (
         !obj.collected &&
@@ -439,7 +544,6 @@ class PomRunner {
           this.state.coins++;
           this.createParticles(obj.x + 25, obj.y + 25, '#FDE047', 12);
 
-          // 追加: コイン取得音の再生
           if (this.audio.coin) {
             this.audio.coin.currentTime = 0;
             this.audio.coin.play().catch(() => {});
@@ -461,8 +565,7 @@ class PomRunner {
           }
         }
       }
-      if (obj.x + obj.width < -100 || obj.collected)
-        this.gameObjects.splice(i, 1);
+      if (obj.isOffscreen() || obj.collected) this.gameObjects.splice(i, 1);
     }
   }
 
@@ -470,10 +573,8 @@ class PomRunner {
     this.state.isGameOver = true;
     this.state.isPaused = true;
 
-    // 追加: BGM停止
     if (this.audio.bgm) this.audio.bgm.pause();
 
-    // 追加: 自己ベストの判定と保存
     const isNewBest = this.state.score > this.bestScore;
     if (isNewBest) {
       this.bestScore = this.state.score;
@@ -492,7 +593,6 @@ class PomRunner {
     const finalScoreUI = document.getElementById('finalScore');
     if (finalScoreUI) finalScoreUI.innerText = this.state.score;
 
-    // 追加: 画像とテキストの出し分け
     const resultImage = document.getElementById('resultImage');
     const resultTitle = document.getElementById('resultTitle');
 
@@ -519,8 +619,14 @@ class PomRunner {
   draw() {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
+    // 背景（奥3層）
     for (let i = 0; i < 3; i++) {
-      this.drawParallaxLayer(this.layers[i]);
+      this.layers[i].draw(
+        this.ctx,
+        this.canvas.width,
+        this.canvas.height,
+        this.player.groundY,
+      );
     }
 
     if (this.state.isFever) {
@@ -530,117 +636,34 @@ class PomRunner {
 
     this.particles.forEach((p) => p.draw(this.ctx));
 
-    if (this.images.player) {
-      const img = this.playerImage;
-      const isSprite = img.width >= this.player.width * 4;
-      if (isSprite) {
-        const sw = img.width / 4;
-        const sh = img.height;
-        this.ctx.drawImage(
-          img,
-          this.player.frame * sw,
-          0,
-          sw,
-          sh,
-          this.player.x,
-          this.player.y,
-          this.player.width,
-          this.player.height,
-        );
-      } else {
-        this.ctx.drawImage(
-          img,
-          this.player.x,
-          this.player.y,
-          this.player.width,
-          this.player.height,
-        );
-      }
-      if (this.state.isFever) {
-        this.ctx.shadowBlur = 20;
-        this.ctx.shadowColor = '#FDE047';
-        this.ctx.strokeStyle = '#FDE047';
-        this.ctx.lineWidth = 4;
-        this.ctx.strokeRect(
-          this.player.x,
-          this.player.y,
-          this.player.width,
-          this.player.height,
-        );
-        this.ctx.shadowBlur = 0;
-      }
-    } else {
-      this.ctx.fillStyle = this.state.isFever ? '#FF4500' : '#FDE047';
-      this.ctx.fillRect(
-        this.player.x,
-        this.player.y,
-        this.player.width,
-        this.player.height,
-      );
-    }
+    // プレイヤー
+    this.player.draw(this.ctx, this.playerImage, this.state.isFever);
 
-    this.drawParallaxLayer(this.layers[3]);
+    // 背景（手前：地面）
+    this.layers[3].draw(
+      this.ctx,
+      this.canvas.width,
+      this.canvas.height,
+      this.player.groundY,
+    );
+
+    // オブジェクト
     this.drawObjects();
   }
 
   drawObjects() {
     this.gameObjects.forEach((obj) => {
-      let img;
       if (obj.type === 'coin') {
-        img = this.coinImg;
-      } else {
-        img = obj.subtype === 'flying' ? this.enemyFlyImg : this.enemyImg;
-      }
-
-      if (img && img.complete && img.width > 0) {
-        if (obj.type === 'coin') {
-          this.ctx.save();
-          this.ctx.shadowBlur = 15;
-          this.ctx.shadowColor = 'rgba(253, 224, 71, 0.8)';
-          this.ctx.drawImage(img, obj.x, obj.y, obj.width, obj.height);
-          this.ctx.restore();
-        } else {
-          const drawY =
-            obj.subtype === 'flying'
-              ? obj.y + Math.sin(this.player.animTimer * 0.1) * 10
-              : obj.y;
-          this.ctx.drawImage(img, obj.x, drawY, obj.width, obj.height);
-        }
-      } else {
-        this.ctx.fillStyle = obj.type === 'coin' ? '#FDE047' : '#FF0000';
-        this.ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
-      }
-    });
-  }
-
-  drawParallaxLayer(layer) {
-    const img = layer.img;
-    const isGround = layer.id === 'ground';
-    const drawY = isGround ? this.player.groundY : 0;
-    const drawHeight = isGround ? 110 : this.canvas.height;
-    if (img.complete && img.width > 0) {
-      const loopWidth = img.width;
-      this.ctx.drawImage(img, layer.x, drawY, loopWidth, drawHeight);
-      this.ctx.drawImage(
-        img,
-        layer.x + loopWidth,
-        drawY,
-        loopWidth,
-        drawHeight,
-      );
-      if (layer.x + loopWidth < this.canvas.width) {
-        this.ctx.drawImage(
-          img,
-          layer.x + loopWidth * 2,
-          drawY,
-          loopWidth,
-          drawHeight,
+        obj.draw(this.ctx, this.coinImg);
+      } else if (obj.type === 'enemy') {
+        obj.draw(
+          this.ctx,
+          this.enemyImg,
+          this.enemyFlyImg,
+          this.player.animTimer,
         );
       }
-    } else {
-      this.ctx.fillStyle = layer.color;
-      this.ctx.fillRect(0, drawY, this.canvas.width, drawHeight);
-    }
+    });
   }
 }
 

@@ -1,6 +1,6 @@
 /**
  * Pom Runner - Main Game Script
- * Version: v0.9.0 (Refactored)
+ * Version: v0.9.1 (Updated)
  */
 
 // --- 演出用パーティクルクラス ---
@@ -78,8 +78,8 @@ class Player {
   constructor(config) {
     this.x = 150;
     this.y = 0;
-    this.width = 120;
-    this.height = 120;
+    this.width = 140;
+    this.height = 140;
     this.vy = 0;
     this.jumpCount = 0;
     this.maxJumps = 2;
@@ -147,13 +147,19 @@ class Player {
         ctx.drawImage(playerImage, this.x, this.y, this.width, this.height);
       }
 
+      // フィーバー時の演出：キラキラ光る虹色のオーラ
       if (isFever) {
-        ctx.shadowBlur = 20;
-        ctx.shadowColor = '#FDE047';
-        ctx.strokeStyle = '#FDE047';
-        ctx.lineWidth = 4;
-        ctx.strokeRect(this.x, this.y, this.width, this.height);
-        ctx.shadowBlur = 0;
+        ctx.save();
+        const hue = (Date.now() / 5) % 360; // 時間で色が変化
+        ctx.shadowBlur = 30;
+        ctx.shadowColor = `hsl(${hue}, 100%, 70%)`;
+        ctx.strokeStyle = `hsl(${hue}, 100%, 60%)`;
+        ctx.lineWidth = 6;
+        // プレイヤーの周囲に輝きを描画
+        ctx.beginPath();
+        ctx.roundRect(this.x, this.y, this.width, this.height, 20);
+        ctx.stroke();
+        ctx.restore();
       }
     } else {
       ctx.fillStyle = isFever ? '#FF4500' : '#FDE047';
@@ -248,7 +254,7 @@ class PomRunner {
   constructor() {
     this.config = {
       baseHeight: 720,
-      version: 'v0.9.0',
+      version: 'v0.9.1',
       playerImagePath: 'assets/image/player.png',
       assets: {
         bgBack: 'assets/image/bg_back.png',
@@ -422,11 +428,14 @@ class PomRunner {
       }
     } catch (err) {}
 
+    // 音響再生の改善: ロードを明示的に行い、再生を試みる
     if (this.audio.bgm) {
+      this.audio.bgm.load();
       this.audio.bgm.currentTime = 0;
       this.audio.bgm
         .play()
-        .catch((err) => console.log('Audio autoplay prevented'));
+        .then(() => console.log('BGM started'))
+        .catch((err) => console.log('Audio playback failed:', err));
     }
 
     document.getElementById('start-screen').classList.add('hidden');
@@ -459,6 +468,16 @@ class PomRunner {
 
     if (this.state.isFever) {
       this.state.feverTimer--;
+      // 無敵中：キラキラのパーティクルを常に発生させる
+      if (this.player.animTimer % 3 === 0) {
+        const hue = (Date.now() / 2) % 360;
+        this.createParticles(
+          this.player.x + Math.random() * this.player.width,
+          this.player.y + Math.random() * this.player.height,
+          `hsl(${hue}, 100%, 75%)`,
+          2,
+        );
+      }
       if (this.state.feverTimer <= 0) {
         this.state.isFever = false;
         this.state.feverGauge = 0;
@@ -553,7 +572,7 @@ class PomRunner {
             this.state.feverGauge += 10;
             if (this.state.feverGauge >= this.config.feverThreshold) {
               this.state.isFever = true;
-              this.state.feverTimer = 300;
+              this.state.feverTimer = 600; // 時間を300から600に延長
             }
           }
         } else {

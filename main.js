@@ -1,6 +1,5 @@
 /**
  * Pom Runner - Main Game Script
- * Version: v0.9.1 (Updated)
  */
 
 // --- 演出用パーティクルクラス ---
@@ -249,7 +248,6 @@ class PomRunner {
   constructor() {
     this.config = {
       baseHeight: 720,
-      version: 'v0.9.1',
       playerImagePath: 'assets/image/player.png',
       assets: {
         bgBack: 'assets/image/bg_back.png',
@@ -321,7 +319,6 @@ class PomRunner {
     const startScreen = document.getElementById('start-screen');
     if (startScreen) {
       const verTag = document.createElement('div');
-      verTag.innerText = this.config.version;
       verTag.style.position = 'absolute';
       verTag.style.top = '20px';
       verTag.style.right = '20px';

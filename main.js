@@ -128,6 +128,14 @@ class Player {
 
   draw(ctx, playerImage, isFever) {
     if (playerImage && playerImage.complete) {
+      ctx.save(); // フィルターの影響範囲を限定するためにsave
+
+      // フィーバー時の演出：マリオのスター風に色相を回転
+      if (isFever) {
+        const hue = (Date.now() / 5) % 360; // 時間で色が変化
+        ctx.filter = `hue-rotate(${hue}deg) contrast(1.2) saturate(1.5)`;
+      }
+
       const isSprite = playerImage.width >= this.width * 4;
       if (isSprite) {
         const sw = playerImage.width / 4;
@@ -147,20 +155,7 @@ class Player {
         ctx.drawImage(playerImage, this.x, this.y, this.width, this.height);
       }
 
-      // フィーバー時の演出：キラキラ光る虹色のオーラ
-      if (isFever) {
-        ctx.save();
-        const hue = (Date.now() / 5) % 360; // 時間で色が変化
-        ctx.shadowBlur = 30;
-        ctx.shadowColor = `hsl(${hue}, 100%, 70%)`;
-        ctx.strokeStyle = `hsl(${hue}, 100%, 60%)`;
-        ctx.lineWidth = 6;
-        // プレイヤーの周囲に輝きを描画
-        ctx.beginPath();
-        ctx.roundRect(this.x, this.y, this.width, this.height, 20);
-        ctx.stroke();
-        ctx.restore();
-      }
+      ctx.restore(); // フィルター状態をリセット
     } else {
       ctx.fillStyle = isFever ? '#FF4500' : '#FDE047';
       ctx.fillRect(this.x, this.y, this.width, this.height);
@@ -388,6 +383,19 @@ class PomRunner {
     const retryBtn = document.getElementById('retry-btn');
     retryBtn.addEventListener('click', () => location.reload());
 
+    // ベストスコアリセットボタンの処理
+    const resetBtn = document.getElementById('reset-best-btn');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        if (confirm('自己ベストをリセットしてもよろしいですか？')) {
+          localStorage.removeItem('pomRunnerBestScore');
+          this.bestScore = 0;
+          if (startBestUI) startBestUI.innerText = '0';
+          alert('リセットしました。');
+        }
+      });
+    }
+
     window.addEventListener(
       'touchstart',
       (e) => {
@@ -420,15 +428,8 @@ class PomRunner {
   async startGame(e) {
     if (e) e.preventDefault();
     if (this.state.gameStarted) return;
-    const doc = document.documentElement;
-    try {
-      if (doc.requestFullscreen) await doc.requestFullscreen();
-      if (screen.orientation && screen.orientation.lock) {
-        await screen.orientation.lock('landscape').catch(() => {});
-      }
-    } catch (err) {}
 
-    // 音響再生の改善: ロードを明示的に行い、再生を試みる
+    // 音響再生の改善: 非同期処理の「前」に呼び出してブラウザの自動再生ブロックを回避する
     if (this.audio.bgm) {
       this.audio.bgm.load();
       this.audio.bgm.currentTime = 0;
@@ -437,6 +438,14 @@ class PomRunner {
         .then(() => console.log('BGM started'))
         .catch((err) => console.log('Audio playback failed:', err));
     }
+
+    const doc = document.documentElement;
+    try {
+      if (doc.requestFullscreen) await doc.requestFullscreen();
+      if (screen.orientation && screen.orientation.lock) {
+        await screen.orientation.lock('landscape').catch(() => {});
+      }
+    } catch (err) {}
 
     document.getElementById('start-screen').classList.add('hidden');
     this.state.gameStarted = true;
@@ -646,11 +655,6 @@ class PomRunner {
         this.canvas.height,
         this.player.groundY,
       );
-    }
-
-    if (this.state.isFever) {
-      this.ctx.fillStyle = 'rgba(255, 224, 71, 0.15)';
-      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
     this.particles.forEach((p) => p.draw(this.ctx));

@@ -306,7 +306,23 @@ class PomRunner {
     this.ctx = this.canvas.getContext('2d');
 
     this.images = {};
-    this.audio = {};
+    
+    // オーディオ関連の初期化
+    this.audioCtx = null;
+    this.bgmTimer = null;
+    this.noteIdx = 0;
+    this.nextNoteTime = 0;
+    // ポムポムプリンをイメージした簡易メロディ
+    this.melody = [
+      { f: 392, d: 0.4 }, // ソ
+      { f: 330, d: 0.4 }, // ミ
+      { f: 261, d: 0.4 }, // ド
+      { f: 330, d: 0.4 }, // ミ
+      { f: 392, d: 0.4 }, // ソ
+      { f: 440, d: 0.4 }, // ラ
+      { f: 392, d: 0.8 }, // ソ
+    ];
+
     this.bestScore = parseInt(localStorage.getItem('pomRunnerBestScore')) || 0;
 
     this.init();
@@ -329,13 +345,21 @@ class PomRunner {
       startScreen.appendChild(verTag);
     }
 
-    for (const [key, path] of Object.entries(this.config.sounds)) {
-      this.audio[key] = new Audio(path);
-      if (key === 'bgm') {
-        this.audio[key].loop = true;
-        this.audio[key].volume = 0.5;
+    // オーディオを有効化するリスナーを追加
+    const unlockAudio = () => {
+      if (!this.audioCtx) {
+        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       }
-    }
+      if (this.audioCtx.state === 'suspended') {
+        this.audioCtx.resume();
+      }
+      // ダミーの無音を再生してアンロックを確実にする
+      this.playTone(440, 'sine', 0.01, 0);
+      window.removeEventListener('mousedown', unlockAudio);
+      window.removeEventListener('touchstart', unlockAudio);
+    };
+    window.addEventListener('mousedown', unlockAudio);
+    window.addEventListener('touchstart', unlockAudio);
 
     const loadPromises = [];
     const loadImage = (imgObj, src) => {
@@ -413,6 +437,39 @@ class PomRunner {
     this.gameLoop();
   }
 
+  /**
+   * 指定した周波数で音を生成する汎用メソッド
+   */
+  playTone(freq, type, dur, vol = 0.1, time = this.audioCtx ? this.audioCtx.currentTime : 0) {
+    if (!this.audioCtx) return;
+    const osc = this.audioCtx.createOscillator();
+    const gain = this.audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, time);
+    gain.gain.setValueAtTime(vol, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
+    osc.connect(gain);
+    gain.connect(this.audioCtx.destination);
+    osc.start(time);
+    osc.stop(time + dur);
+  }
+
+  /**
+   * BGMの再生ループ処理
+   */
+  startBGM() {
+    if (this.state.isGameOver || !this.state.gameStarted) return;
+    if (this.audioCtx && this.nextNoteTime < this.audioCtx.currentTime + 0.1) {
+      const n = this.melody[this.noteIdx];
+      // フィーバー中はピッチを1.2倍にする
+      const freq = this.state.isFever ? n.f * 1.2 : n.f;
+      this.playTone(freq, 'triangle', n.d * 0.8, 0.03, this.nextNoteTime);
+      this.nextNoteTime += n.d;
+      this.noteIdx = (this.noteIdx + 1) % this.melody.length;
+    }
+    this.bgmTimer = setTimeout(() => this.startBGM(), 50);
+  }
+
   handleResize() {
     const displayHeight = window.innerHeight;
     const scale = displayHeight / this.config.baseHeight;
@@ -426,15 +483,15 @@ class PomRunner {
     if (e) e.preventDefault();
     if (this.state.gameStarted) return;
 
-    // 音響再生の改善: 非同期処理の「前」に呼び出してブラウザの自動再生ブロックを回避する
-    if (this.audio.bgm) {
-      this.audio.bgm.load();
-      this.audio.bgm.currentTime = 0;
-      this.audio.bgm
-        .play()
-        .then(() => console.log('BGM started'))
-        .catch((err) => console.log('Audio playback failed:', err));
+    // オーディオの準備と開始
+    if (!this.audioCtx) {
+      this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
+    if (this.audioCtx.state === 'suspended') {
+      this.audioCtx.resume();
+    }
+    this.nextNoteTime = this.audioCtx.currentTime;
+    this.startBGM();
 
     const doc = document.documentElement;
     try {
@@ -454,6 +511,8 @@ class PomRunner {
     if (this.state.isPaused || !this.state.gameStarted || this.state.isGameOver)
       return;
     this.player.jump();
+    // ジャンプ音の追加
+    this.playTone(440 + this.player.jumpCount * 110, 'sine', 0.1, 0.05);
   }
 
   createParticles(x, y, color, count = 8) {
@@ -569,22 +628,26 @@ class PomRunner {
           this.state.coins++;
           this.createParticles(obj.x + 25, obj.y + 25, '#FDE047', 12);
 
-          if (this.audio.coin) {
-            this.audio.coin.currentTime = 0;
-            this.audio.coin.play().catch(() => {});
-          }
+          // コイン取得音
+          this.playTone(880, 'sine', 0.1, 0.05);
 
           if (!this.state.isFever) {
             this.state.feverGauge += 10;
             if (this.state.feverGauge >= this.config.feverThreshold) {
               this.state.isFever = true;
-              this.state.feverTimer = 600; // 時間を300から600に延長
+              this.state.feverTimer = 600; 
+              // フィーバー突入音
+              this.playTone(523, 'square', 0.1, 0.1);
+              this.playTone(659, 'square', 0.1, 0.1, this.audioCtx.currentTime + 0.1);
+              this.playTone(783, 'square', 0.2, 0.1, this.audioCtx.currentTime + 0.2);
             }
           }
         } else {
           if (this.state.isFever) {
             obj.collected = true;
             this.createParticles(obj.x + 40, obj.y + 40, '#FF4500', 15);
+            // 敵撃破音
+            this.playTone(220, 'sawtooth', 0.1, 0.05);
           } else {
             this.gameOver();
           }
@@ -598,21 +661,20 @@ class PomRunner {
     this.state.isGameOver = true;
     this.state.isPaused = true;
 
-    if (this.audio.bgm) this.audio.bgm.pause();
+    // BGMの停止
+    if (this.bgmTimer) clearTimeout(this.bgmTimer);
 
     const isNewBest = this.state.score > this.bestScore;
     if (isNewBest) {
       this.bestScore = this.state.score;
       localStorage.setItem('pomRunnerBestScore', this.bestScore);
-      if (this.audio.highscore) {
-        this.audio.highscore.currentTime = 0;
-        this.audio.highscore.play().catch(() => {});
-      }
+      // ハイスコア/記録更新音
+      this.playTone(523, 'sine', 0.2, 0.1);
+      this.playTone(659, 'sine', 0.2, 0.1, this.audioCtx.currentTime + 0.1);
+      this.playTone(783, 'sine', 0.4, 0.1, this.audioCtx.currentTime + 0.2);
     } else {
-      if (this.audio.gameover) {
-        this.audio.gameover.currentTime = 0;
-        this.audio.gameover.play().catch(() => {});
-      }
+      // 通常のゲームオーバー音
+      this.playTone(150, 'sawtooth', 0.5, 0.1);
     }
 
     const finalScoreUI = document.getElementById('finalScore');

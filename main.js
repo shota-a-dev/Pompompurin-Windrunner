@@ -332,18 +332,18 @@ class PomRunner {
     const startBestUI = document.getElementById('startBestScore');
     if (startBestUI) startBestUI.innerText = this.bestScore;
 
-    const startScreen = document.getElementById('start-screen');
-    if (startScreen) {
-      const verTag = document.createElement('div');
-      verTag.style.position = 'absolute';
-      verTag.style.top = '20px';
-      verTag.style.right = '20px';
-      verTag.style.fontSize = '18px';
-      verTag.style.fontWeight = '900';
-      verTag.style.color = '#5E3A21';
-      verTag.style.opacity = '0.5';
-      startScreen.appendChild(verTag);
-    }
+    // const startScreen = document.getElementById('start-screen');
+    // if (startScreen) {
+    //   const verTag = document.createElement('div');
+    //   verTag.style.position = 'absolute';
+    //   verTag.style.top = '20px';
+    //   verTag.style.right = '20px';
+    //   verTag.style.fontSize = '18px';
+    //   verTag.style.fontWeight = '900';
+    //   verTag.style.color = '#5E3A21';
+    //   verTag.style.opacity = '0.5';
+    //   startScreen.appendChild(verTag);
+    // }
 
     // オーディオを有効化するリスナーを追加
     const unlockAudio = () => {

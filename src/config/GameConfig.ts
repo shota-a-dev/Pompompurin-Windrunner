@@ -34,7 +34,7 @@ export const GameConfig = {
     
     // --- スピード設定 ---
     SPEED: {
-        NORMAL: 10,        // 通常時のゲーム進行速度
+        NORMAL: 12,        // 通常時のゲーム進行速度
         FEVER: 15         // フィーバーモード時のゲーム進行速度
     },
     

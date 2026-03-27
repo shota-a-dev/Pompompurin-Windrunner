@@ -18,6 +18,10 @@ export const GameConfig = {
         JUMP_POWER: -750, // ジャンプした瞬間の上昇速度（負の値で上方向）
         MAX_JUMPS: 2,     // 最大ジャンプ回数（2回で2段ジャンプ）
         GROUND_Y: 440,    // 着地目標となるY座標。update時の着地判定に使用
+        DUST_AMOUNT: 5,   // 接地時に発生する土埃の量
+        DUST_SIZE: 15,     // 土埃の半径 (px)
+        DUST_SPEED: 150,  // 土埃が舞う最大速度
+        DUST_LIFESPAN: 600, // 土埃が消えるまでの時間 (ms)
         HITBOX: {
             WIDTH: 130,   // 当たり判定の横幅
             HEIGHT: 140,  // 当たり判定の縦幅

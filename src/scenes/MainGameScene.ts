@@ -13,6 +13,7 @@ export default class MainGameScene extends Phaser.Scene {
     private enemies!: Phaser.GameObjects.Group;
     private coinEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
     private dustEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
+    private enemyDebrisEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
     
     private gameSpeed: number = GameConfig.SPEED.NORMAL;
     private score: number = 0;
@@ -45,32 +46,54 @@ export default class MainGameScene extends Phaser.Scene {
         this.coins = this.add.group();
         this.enemies = this.add.group();
 
+        // BGMの開始
+        SoundGenerator.playBGM();
+
         this.coinEmitter = this.add.particles(0, 0, 'coin', {
             speed: { min: -100, max: 100 },
             scale: { start: 0.4, end: 0 },
             alpha: { start: 1, end: 0 },
             lifespan: 500,
-            gravityY: 200
+            gravityY: 200,
+            emitting: false // 最初から出ないように固定
         }).setDepth(GameConfig.DEPTH.OBJECTS + 1);
 
-        // 砂埃用のテクスチャを生成 (プリン画像からシンプルな円へ)
+        // 砂埃用のテクスチャ (サイズを設定値に連動)
+        const dustSize = GameConfig.PLAYER.DUST_SIZE;
         const circle = this.make.graphics({ x: 0, y: 0 });
         circle.fillStyle(0xD2B48C, 1);
-        circle.fillCircle(5, 5, 5);
-        circle.generateTexture('dust_particle', 10, 10);
-        circle.destroy(); // 生成後は不要なので破棄
-
+        circle.fillCircle(dustSize, dustSize, dustSize);
+        circle.generateTexture('dust_particle', dustSize * 2, dustSize * 2);
+        
+        // 敵の破片用のテクスチャ（赤い丸）
+        const redCircle = this.make.graphics({ x: 0, y: 0 });
+        redCircle.fillStyle(0xFF0000, 1);
+        redCircle.fillCircle(8, 8, 8);
+        redCircle.generateTexture('enemy_debris', 16, 16);
+        
+        circle.destroy();
+        redCircle.destroy();
 
         this.dustEmitter = this.add.particles(0, 0, 'dust_particle', {
             scale: { start: 1, end: 0 },
             alpha: { start: 0.6, end: 0 },
-            speed: { min: 20, max: 100 },
+            speed: { min: 20, max: GameConfig.PLAYER.DUST_SPEED },
             angle: { min: 180, max: 230 },
-            lifespan: 400
+            lifespan: GameConfig.PLAYER.DUST_LIFESPAN,
+            emitting: false 
         }).setDepth(GameConfig.DEPTH.DUST);
 
+        this.enemyDebrisEmitter = this.add.particles(0, 0, 'enemy_debris', {
+            speed: { min: 100, max: 400 },
+            scale: { start: 1, end: 0 },
+            alpha: { start: 1, end: 0 },
+            lifespan: 600,
+            gravityY: 300,
+            emitting: false // 最初から出ないように固定
+        }).setDepth(GameConfig.DEPTH.OBJECTS + 1);
+
         this.events.on('playerRun', (x: number, y: number) => {
-            this.dustEmitter.explode(1, x, y);
+            this.dustEmitter.explode(GameConfig.PLAYER.DUST_AMOUNT, x, y); 
         });
 
         this.scene.stop('UIScene');
@@ -94,10 +117,9 @@ export default class MainGameScene extends Phaser.Scene {
             }
         }
 
-        // 60FPS(16.66ms)を基準とした時間経過係数
         const deltaMultiplier = delta / (1000 / 60);
-
         const currentSpeed = (this.isFever ? GameConfig.SPEED.FEVER : this.gameSpeed) * deltaMultiplier;
+        
         this.background.update(currentSpeed);
         this.player.updatePlayer();
 
@@ -119,7 +141,6 @@ export default class MainGameScene extends Phaser.Scene {
         const scoreUI = document.getElementById('currentScore');
         if (scoreUI) scoreUI.innerText = this.score.toString();
 
-        // タイマーも経過時間に基づき加算
         this.spawnTimer += deltaMultiplier;
         if (this.spawnTimer > GameConfig.SPAWN.INTERVAL) {
             this.spawnObject();
@@ -169,8 +190,11 @@ export default class MainGameScene extends Phaser.Scene {
 
     private hitEnemy(player: any, enemy: any) {
         if (this.isFever) {
+            // 敵撃破時のバラバラ演出
+            this.enemyDebrisEmitter.explode(12, enemy.x + 50, enemy.y + 50);
             enemy.destroy();
             this.cameras.main.shake(100, 0.01);
+            SoundGenerator.playCoin(); // 撃破音の代用
         } else {
             SoundGenerator.playHit();
             this.isGameOver = true;

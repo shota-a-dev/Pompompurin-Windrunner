@@ -9,6 +9,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     private groundLine: number = GameConfig.PLAYER.GROUND_Y;
     private isFever: boolean = false;
     private feverColorIndex: number = 0;
+    private wasInAir: boolean = false;
 
     constructor(scene: Phaser.Scene, x: number, y: number) {
         super(scene, x, y, 'player');
@@ -33,6 +34,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         if (this.jumpCount < this.maxJumps) {
             this.setVelocityY(this.jumpPower);
             this.jumpCount++;
+            this.wasInAir = true;
             SoundGenerator.playJump();
         }
     }
@@ -51,6 +53,12 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
         // 落下中または接地中(y速度が0以上)の場合のみ、接地座標への吸着を行う
         if (body && this.y >= groundY - 1 && body.velocity.y >= 0) {
+            // 着地した瞬間を検知
+            if (this.wasInAir) {
+                this.scene.events.emit('playerLand');
+                this.wasInAir = false;
+            }
+
             this.y = groundY;
             this.setVelocityY(0);
             this.jumpCount = 0;
@@ -61,6 +69,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
                 this.scene.events.emit('playerRun', this.x + 85, this.y + 160);
             }
         } else if (body) {
+            this.wasInAir = true;
             if (body.velocity.y < 0) {
                 this.play('jump', true);
             } else {

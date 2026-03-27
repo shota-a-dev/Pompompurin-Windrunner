@@ -17,6 +17,7 @@ export default class MainGameScene extends Phaser.Scene {
     
     private gameSpeed: number = GameConfig.SPEED.NORMAL;
     private score: number = 0;
+    private lastMilestoneScore: number = 0; // 加速判定用の前回スコア
     private distance: number = 0;
     private spawnTimer: number = 0;
     private feverGauge: number = 0;
@@ -30,6 +31,7 @@ export default class MainGameScene extends Phaser.Scene {
 
     create() {
         this.score = 0;
+        this.lastMilestoneScore = 0;
         this.distance = 0;
         this.spawnTimer = 0;
         this.feverGauge = 0;
@@ -55,7 +57,7 @@ export default class MainGameScene extends Phaser.Scene {
             alpha: { start: 1, end: 0 },
             lifespan: 500,
             gravityY: 200,
-            emitting: false // 最初から出ないように固定
+            emitting: false
         }).setDepth(GameConfig.DEPTH.OBJECTS + 1);
 
         // 砂埃用のテクスチャ (サイズを設定値に連動)
@@ -89,11 +91,15 @@ export default class MainGameScene extends Phaser.Scene {
             alpha: { start: 1, end: 0 },
             lifespan: 600,
             gravityY: 300,
-            emitting: false // 最初から出ないように固定
+            emitting: false
         }).setDepth(GameConfig.DEPTH.OBJECTS + 1);
 
         this.events.on('playerRun', (x: number, y: number) => {
             this.dustEmitter.explode(GameConfig.PLAYER.DUST_AMOUNT, x, y); 
+        });
+
+        this.events.on('playerLand', () => {
+            this.cameras.main.shake(100, GameConfig.JUICE.LANDING_SHAKE);
         });
 
         this.scene.stop('UIScene');
@@ -113,13 +119,15 @@ export default class MainGameScene extends Phaser.Scene {
                 this.isFever = false;
                 this.feverGauge = 0;
                 this.player.setFeverMode(false);
-                this.gameSpeed = GameConfig.SPEED.NORMAL;
             }
         }
 
+        // 60FPS(16.66ms)を基準とした時間経過係数
         const deltaMultiplier = delta / (1000 / 60);
-        const currentSpeed = (this.isFever ? GameConfig.SPEED.FEVER : this.gameSpeed) * deltaMultiplier;
-        
+
+        const currentSpeed = (this.isFever 
+            ? this.gameSpeed * GameConfig.SPEED.FEVER_SPEED_MAGNIFICATION 
+            : this.gameSpeed) * deltaMultiplier;
         this.background.update(currentSpeed);
         this.player.updatePlayer();
 
@@ -138,13 +146,33 @@ export default class MainGameScene extends Phaser.Scene {
         this.distance += currentSpeed;
         this.score = Math.floor(this.distance / 10);
         
-        const scoreUI = document.getElementById('currentScore');
-        if (scoreUI) scoreUI.innerText = this.score.toString();
+        // 段階的な難易度上昇 (スコア1000単位で加速)
+        const scoreMilestone = Math.floor(this.score / 1000);
+        if (scoreMilestone > this.lastMilestoneScore) {
+            this.gameSpeed += GameConfig.SPEED.INCREMENT;
+            this.lastMilestoneScore = scoreMilestone;
+            // 加速時の演出（任意：画面を一瞬フラッシュさせる等も可能）
+        }
+
+        this.updateScoreUI();
 
         this.spawnTimer += deltaMultiplier;
         if (this.spawnTimer > GameConfig.SPAWN.INTERVAL) {
             this.spawnObject();
             this.spawnTimer = 0;
+        }
+    }
+
+    private updateScoreUI(jump: boolean = false) {
+        const scoreUI = document.getElementById('currentScore');
+        if (scoreUI) {
+            scoreUI.innerText = this.score.toString();
+            if (jump) {
+                scoreUI.style.transform = `scale(${GameConfig.JUICE.COIN_SCORE_JUMP})`;
+                setTimeout(() => {
+                    scoreUI.style.transform = 'scale(1)';
+                }, 100);
+            }
         }
     }
 
@@ -174,6 +202,7 @@ export default class MainGameScene extends Phaser.Scene {
         coin.destroy();
         SoundGenerator.playCoin();
         this.distance += 1000;
+        this.updateScoreUI(true);
         if (!this.isFever) {
             this.feverGauge += GameConfig.FEVER.COIN_REWARD;
             if (this.feverGauge >= GameConfig.FEVER.THRESHOLD) this.startFever();
@@ -183,18 +212,16 @@ export default class MainGameScene extends Phaser.Scene {
     private startFever() {
         this.isFever = true;
         this.feverTimer = GameConfig.FEVER.DURATION;
-        this.gameSpeed = GameConfig.SPEED.FEVER;
         this.player.setFeverMode(true);
         SoundGenerator.playFever();
     }
 
     private hitEnemy(player: any, enemy: any) {
         if (this.isFever) {
-            // 敵撃破時のバラバラ演出
             this.enemyDebrisEmitter.explode(12, enemy.x + 50, enemy.y + 50);
             enemy.destroy();
             this.cameras.main.shake(100, 0.01);
-            SoundGenerator.playCoin(); // 撃破音の代用
+            SoundGenerator.playCoin();
         } else {
             SoundGenerator.playHit();
             this.isGameOver = true;

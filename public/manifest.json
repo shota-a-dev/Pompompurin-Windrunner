@@ -1,0 +1,18 @@
+{
+  "name": "ポムランナー",
+  "short_name": "ポムランナー",
+  "description": "ポムポムプリンのウィンドランナー風ゲーム",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#FFFDEB",
+  "theme_color": "#FDE047",
+  "icons": [
+    {
+      "src": "assets/image/sprites/player.png",
+      "sizes": "170x170",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

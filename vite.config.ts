@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  base: './', // GitHub Pages等へのデプロイを考慮
+  base: '/Pompompurin-Windrunner/', // GitHub Pages等へのデプロイを考慮
   server: {
     host: true, // 同一ネットワーク内のスマホからアクセス可能にする
     port: 3000

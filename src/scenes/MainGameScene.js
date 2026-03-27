@@ -5,28 +5,24 @@ import Coin from '../entities/Coin';
 import Enemy from '../entities/Enemy';
 import SoundGenerator from '../utils/SoundGenerator';
 import { GameConfig } from '../config/GameConfig';
-
 export default class MainGameScene extends Phaser.Scene {
-    private player!: Player;
-    private background!: Background;
-    private coins!: Phaser.GameObjects.Group;
-    private enemies!: Phaser.GameObjects.Group;
-    private coinEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
-    private dustEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
-    
-    private gameSpeed: number = GameConfig.SPEED.NORMAL;
-    private score: number = 0;
-    private distance: number = 0;
-    private spawnTimer: number = 0;
-    private feverGauge: number = 0;
-    private isFever: boolean = false;
-    private feverTimer: number = 0;
-    private isGameOver: boolean = false;
-
+    player;
+    background;
+    coins;
+    enemies;
+    coinEmitter;
+    dustEmitter;
+    gameSpeed = GameConfig.SPEED.NORMAL;
+    score = 0;
+    distance = 0;
+    spawnTimer = 0;
+    feverGauge = 0;
+    isFever = false;
+    feverTimer = 0;
+    isGameOver = false;
     constructor() {
         super('MainGameScene');
     }
-
     create() {
         this.score = 0;
         this.distance = 0;
@@ -35,16 +31,13 @@ export default class MainGameScene extends Phaser.Scene {
         this.isFever = false;
         this.isGameOver = false;
         this.gameSpeed = GameConfig.SPEED.NORMAL;
-
         const uiLayer = document.getElementById('ui-layer');
-        if (uiLayer) uiLayer.classList.remove('hidden');
-
+        if (uiLayer)
+            uiLayer.classList.remove('hidden');
         this.background = new Background(this);
         this.player = new Player(this, GameConfig.PLAYER.START_X, GameConfig.PLAYER.START_Y);
-
         this.coins = this.add.group();
         this.enemies = this.add.group();
-
         this.coinEmitter = this.add.particles(0, 0, 'coin', {
             speed: { min: -100, max: 100 },
             scale: { start: 0.4, end: 0 },
@@ -52,15 +45,12 @@ export default class MainGameScene extends Phaser.Scene {
             lifespan: 500,
             gravityY: 200
         }).setDepth(GameConfig.DEPTH.OBJECTS + 1);
-
         // 砂埃用のテクスチャを生成 (プリン画像からシンプルな円へ)
         const circle = this.make.graphics({ x: 0, y: 0 });
         circle.fillStyle(0xD2B48C, 1);
         circle.fillCircle(5, 5, 5);
         circle.generateTexture('dust_particle', 10, 10);
         circle.destroy(); // 生成後は不要なので破棄
-
-
         this.dustEmitter = this.add.particles(0, 0, 'dust_particle', {
             scale: { start: 1, end: 0 },
             alpha: { start: 0.6, end: 0 },
@@ -68,22 +58,17 @@ export default class MainGameScene extends Phaser.Scene {
             angle: { min: 180, max: 230 },
             lifespan: 400
         }).setDepth(GameConfig.DEPTH.DUST);
-
-        this.events.on('playerRun', (x: number, y: number) => {
+        this.events.on('playerRun', (x, y) => {
             this.dustEmitter.explode(1, x, y);
         });
-
         this.scene.stop('UIScene');
-
         this.physics.add.overlap(this.player, this.coins, this.collectCoin, undefined, this);
         this.physics.add.overlap(this.player, this.enemies, this.hitEnemy, undefined, this);
-
         this.input.on('pointerdown', () => this.player.jump());
     }
-
-    update(time: number, delta: number) {
-        if (this.isGameOver) return;
-
+    update(time, delta) {
+        if (this.isGameOver)
+            return;
         if (this.isFever) {
             this.feverTimer -= delta;
             if (this.feverTimer <= 0) {
@@ -93,40 +78,35 @@ export default class MainGameScene extends Phaser.Scene {
                 this.gameSpeed = GameConfig.SPEED.NORMAL;
             }
         }
-
         const currentSpeed = this.isFever ? GameConfig.SPEED.FEVER : this.gameSpeed;
         this.background.update(currentSpeed);
         this.player.updatePlayer();
-
         const coinArray = this.coins.getChildren();
         for (let i = coinArray.length - 1; i >= 0; i--) {
-            const coin = coinArray[i] as any;
-            if (coin && coin.updateObject) coin.updateObject(currentSpeed);
+            const coin = coinArray[i];
+            if (coin && coin.updateObject)
+                coin.updateObject(currentSpeed);
         }
-
         const enemyArray = this.enemies.getChildren();
         for (let i = enemyArray.length - 1; i >= 0; i--) {
-            const enemy = enemyArray[i] as any;
-            if (enemy && enemy.updateObject) enemy.updateObject(currentSpeed);
+            const enemy = enemyArray[i];
+            if (enemy && enemy.updateObject)
+                enemy.updateObject(currentSpeed);
         }
-
         this.distance += currentSpeed;
         this.score = Math.floor(this.distance / 10);
-        
         const scoreUI = document.getElementById('currentScore');
-        if (scoreUI) scoreUI.innerText = this.score.toString();
-
+        if (scoreUI)
+            scoreUI.innerText = this.score.toString();
         this.spawnTimer++;
         if (this.spawnTimer > GameConfig.SPAWN.INTERVAL) {
             this.spawnObject();
             this.spawnTimer = 0;
         }
     }
-
-    private spawnObject() {
+    spawnObject() {
         const x = this.scale.width + 100;
         const groundY = GameConfig.GROUND.Y;
-
         if (Math.random() < 0.7) {
             const coinCount = Math.floor(Math.random() * 3) + 3;
             const baseY = groundY - 150 - Math.random() * 200;
@@ -135,7 +115,8 @@ export default class MainGameScene extends Phaser.Scene {
                 coin.setDepth(GameConfig.DEPTH.OBJECTS);
                 this.coins.add(coin);
             }
-        } else {
+        }
+        else {
             const isFly = Math.random() > 0.7;
             const y = isFly ? groundY - 180 : groundY - 100;
             const enemy = new Enemy(this, x, y, isFly ? 'fly' : 'land');
@@ -143,57 +124,54 @@ export default class MainGameScene extends Phaser.Scene {
             this.enemies.add(enemy);
         }
     }
-
-    private collectCoin(player: any, coin: any) {
+    collectCoin(player, coin) {
         this.coinEmitter.explode(10, coin.x + 25, coin.y + 25);
         coin.destroy();
         SoundGenerator.playCoin();
         this.distance += 1000;
         if (!this.isFever) {
             this.feverGauge += GameConfig.FEVER.COIN_REWARD;
-            if (this.feverGauge >= GameConfig.FEVER.THRESHOLD) this.startFever();
+            if (this.feverGauge >= GameConfig.FEVER.THRESHOLD)
+                this.startFever();
         }
     }
-
-    private startFever() {
+    startFever() {
         this.isFever = true;
         this.feverTimer = GameConfig.FEVER.DURATION;
         this.gameSpeed = GameConfig.SPEED.FEVER;
         this.player.setFeverMode(true);
         SoundGenerator.playFever();
     }
-
-    private hitEnemy(player: any, enemy: any) {
+    hitEnemy(player, enemy) {
         if (this.isFever) {
             enemy.destroy();
             this.cameras.main.shake(100, 0.01);
-        } else {
+        }
+        else {
             SoundGenerator.playHit();
             this.isGameOver = true;
             this.physics.pause();
             this.showGameOver();
         }
     }
-
-    private showGameOver() {
+    showGameOver() {
         const gameOverScreen = document.getElementById('gameover-screen');
         const finalScoreUI = document.getElementById('finalScore');
         const resultImage = document.getElementById('resultImage');
-
-        if (finalScoreUI) finalScoreUI.innerText = this.score.toString();
+        if (finalScoreUI)
+            finalScoreUI.innerText = this.score.toString();
         if (resultImage) {
             const bestScore = parseInt(localStorage.getItem('pomRunnerBestScore') || '0');
             const isNewBest = this.score > bestScore;
-            (resultImage as HTMLImageElement).src = isNewBest ? 'assets/image/ui/purin_update_best.png' : 'assets/image/ui/purin_gameover.png';
-            if (isNewBest) localStorage.setItem('pomRunnerBestScore', this.score.toString());
+            resultImage.src = isNewBest ? 'assets/image/ui/purin_update_best.png' : 'assets/image/ui/purin_gameover.png';
+            if (isNewBest)
+                localStorage.setItem('pomRunnerBestScore', this.score.toString());
         }
-
         if (gameOverScreen) {
             gameOverScreen.classList.remove('hidden');
             setTimeout(() => gameOverScreen.classList.add('opacity-100'), 10);
             gameOverScreen.style.pointerEvents = 'auto';
         }
-
         const retryBtn = document.getElementById('retry-btn');
         if (retryBtn) {
             retryBtn.onclick = () => location.reload();

@@ -94,7 +94,10 @@ export default class MainGameScene extends Phaser.Scene {
             }
         }
 
-        const currentSpeed = this.isFever ? GameConfig.SPEED.FEVER : this.gameSpeed;
+        // 60FPS(16.66ms)を基準とした時間経過係数
+        const deltaMultiplier = delta / (1000 / 60);
+
+        const currentSpeed = (this.isFever ? GameConfig.SPEED.FEVER : this.gameSpeed) * deltaMultiplier;
         this.background.update(currentSpeed);
         this.player.updatePlayer();
 
@@ -116,7 +119,8 @@ export default class MainGameScene extends Phaser.Scene {
         const scoreUI = document.getElementById('currentScore');
         if (scoreUI) scoreUI.innerText = this.score.toString();
 
-        this.spawnTimer++;
+        // タイマーも経過時間に基づき加算
+        this.spawnTimer += deltaMultiplier;
         if (this.spawnTimer > GameConfig.SPAWN.INTERVAL) {
             this.spawnObject();
             this.spawnTimer = 0;

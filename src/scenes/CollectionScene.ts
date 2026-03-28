@@ -81,8 +81,8 @@ export default class CollectionScene extends Phaser.Scene {
             const canAfford = totalCoins >= item.cost;
 
             const card = document.createElement('div');
-            // 解放済みなら cursor-pointer を付与
-            card.className = `bg-white p-1 rounded-xl shadow-sm border-2 transition-all flex flex-col items-center text-center ${isUnlocked ? 'border-[#FDE047] cursor-pointer hover:scale-105' : 'border-gray-100'}`;
+            // 解放済みならタップ時のフィードバック(active:scale-95)を付与。hoverはモバイルで不安定なため削除
+            card.className = `bg-white p-1 rounded-xl shadow-sm border-2 transition-all flex flex-col items-center text-center ${isUnlocked ? 'border-[#FDE047] cursor-pointer active:scale-95' : 'border-gray-100'}`;
             
             card.innerHTML = `
                 <div class="relative mb-0.5 h-36 w-full flex items-center justify-center bg-[#FFFDEB] rounded-lg overflow-hidden pointer-events-none border border-[#FDE047]/10">

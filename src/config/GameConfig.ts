@@ -24,7 +24,7 @@ export const GameConfig = {
     DUST_LIFESPAN: 600, // 土埃が消えるまでの時間 (ms)
     HITBOX: {
       WIDTH: 130, // 当たり判定の横幅
-      HEIGHT: 145, // 当たり判定の縦幅（GROUND_Y:440 と地面:620 の差分 180px から OFFSET_Y を引いた値）
+      HEIGHT: 145, // 当たり判定の縦幅
       OFFSET_X: 20, // 画像左端から当たり判定開始位置までの距離
       OFFSET_Y: 15  // 画像上端から当たり判定開始位置までの距離
     },

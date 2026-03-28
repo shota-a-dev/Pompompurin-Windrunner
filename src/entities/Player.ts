@@ -54,10 +54,13 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         const body = this.body as Phaser.Physics.Arcade.Body;
         if (!body) return;
 
+        const groundY = GameConfig.PLAYER.GROUND_Y; // 440 (頭基準の接地目標)
+
         // 【刷新】物理エンジンによる衝突判定を100%信頼する方式
-        // body.touching.down: 他の物理ボディ（地面）の上にいるか
-        // body.blocked.down: 世界の境界（一番下など）の上にいるか
-        const isGrounded = body.touching.down || body.blocked.down;
+        // 1. body.touching.down: 他の物理ボディ（地面）の上にいるか
+        // 2. body.velocity.y >= 0: 上昇中でない（ジャンプした瞬間はリセットしない）
+        // 3. Math.abs(this.y - groundY) < 15: 実際の座標が地面の高さに近い
+        const isGrounded = (body.touching.down || body.blocked.down) && body.velocity.y >= 0 && Math.abs(this.y - groundY) < 15;
 
         if (isGrounded) {
             // 着地した瞬間を検知
@@ -66,7 +69,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
                 this.wasInAir = false;
             }
 
-            // 座標の上書き固定やsetVelocityY(0)は廃止。物理エンジンの自然な静止に任せる。
+            // ジャンプ回数をリセット
             this.jumpCount = 0;
             
             if (this.anims.currentAnim?.key !== 'run') {
@@ -74,7 +77,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
             }
             
             if (Math.random() < 0.4) {
-                // 接地中のみ土埃を出す (足元の位置 y+165 付近)
+                // 接地中のみ土埃を出す
                 this.scene.events.emit('playerRun', this.x + 85, this.y + 160);
             }
         } else {

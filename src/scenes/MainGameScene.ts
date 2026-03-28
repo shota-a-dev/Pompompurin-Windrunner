@@ -247,7 +247,13 @@ export default class MainGameScene extends Phaser.Scene {
         const x = this.scale.width + 100;
         const groundY = GameConfig.GROUND.Y;
 
+        // 地面があるかどうかの簡易チェック
+        const hasGroundAtSpawn = this.groundGroup.getChildren().some((child: any) => {
+            return child.x <= x && (child.x + GameConfig.GROUND.BLOCK_WIDTH) >= x;
+        });
+
         if (Math.random() < 0.7) {
+            // コインは穴の上でもOK（空中配置）
             const coinCount = Math.floor(Math.random() * 3) + 3;
             const baseY = groundY - 150 - Math.random() * 200;
             for (let i = 0; i < coinCount; i++) {
@@ -257,6 +263,9 @@ export default class MainGameScene extends Phaser.Scene {
             }
         } else {
             const isFly = Math.random() > 0.7;
+            // 地上敵の場合、地面があるときのみ生成
+            if (!isFly && !hasGroundAtSpawn) return;
+
             const y = isFly ? groundY - 180 : groundY - 100;
             const enemy = new Enemy(this, x, y, isFly ? 'fly' : 'land');
             enemy.setDepth(GameConfig.DEPTH.OBJECTS);
@@ -265,6 +274,7 @@ export default class MainGameScene extends Phaser.Scene {
     }
 
     private collectCoin(player: any, coin: any) {
+        if (coin.body) coin.body.enable = false; // 物理判定を即座に無効化
         this.coinEmitter.explode(10, coin.x + 25, coin.y + 25);
         coin.destroy();
         SoundGenerator.playCoin();

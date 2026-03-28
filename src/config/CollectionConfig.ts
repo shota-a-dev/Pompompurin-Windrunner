@@ -34,35 +34,35 @@ export const CollectionConfig: CollectionItem[] = [
     {
         id: '004',
         name: 'キャラメルソースの噴水',
-        cost: 200,
+        cost: 150,
         description: '黄金色のキャラメルソースが溢れ出す、夢のような噴水。',
         image: 'assets/image/collection/item_004.png'
     },
     {
         id: '005',
         name: '特大マカロン（イエロー）',
-        cost: 500, 
+        cost: 200, 
         description: 'カスタードクリームがたっぷり詰まった、とっても大きなマカロン。',
         image: 'assets/image/collection/item_005.png'
     },
     {
         id: '006',
         name: '友情のなかよしバッジ',
-        cost: 600, 
+        cost: 300, 
         description: 'プリンとお友達の顔が描かれた、絆の証のハート型バッジ。',
         image: 'assets/image/collection/item_006.png'
     },
     {
         id: '007',
         name: '幸運の四つ葉のクローバー',
-        cost: 700, 
+        cost: 400, 
         description: '不思議な粉でキラキラ光るクローバー。持っていると良いことがあるかも？',
         image: 'assets/image/collection/item_007.png'
     },
     {
         id: '008',
         name: '虹色のプリン',
-        cost: 800, 
+        cost: 500, 
         description: '七色に輝く伝説のプリン。プルプル揺れる姿はまるで魔法のよう。',
         image: 'assets/image/collection/item_008.png'
     }

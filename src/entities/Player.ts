@@ -11,22 +11,24 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     private wasInAir: boolean = false;
 
     constructor(scene: Phaser.Scene, x: number, y: number) {
-        // 初期テクスチャを個別画像の一つに設定
         super(scene, x, y, 'purin_run_0');
         scene.add.existing(this);
         scene.physics.add.existing(this);
         
-        // 物理境界の設定（下への落下を許容）
+        // 物理世界の境界設定（下への落下を許容）
         this.setCollideWorldBounds(true);
-        (this.scene.physics.world.bounds as any).height = GameConfig.REFERENCE_HEIGHT + 200; 
+        (this.scene.physics.world.bounds as any).height = GameConfig.REFERENCE_HEIGHT + 500; 
         
-        // 以前の左上基準 (0, 0) に戻す
         this.setOrigin(0, 0);
         
         const body = this.body as Phaser.Physics.Arcade.Body;
         if (body) {
             body.setSize(GameConfig.PLAYER.HITBOX.WIDTH, GameConfig.PLAYER.HITBOX.HEIGHT);
             body.setOffset(GameConfig.PLAYER.HITBOX.OFFSET_X, GameConfig.PLAYER.HITBOX.OFFSET_Y);
+            
+            // 物理挙動の安定化設定
+            body.setBounce(0, 0);
+            body.setDamping(true);
         }
 
         this.setDepth(GameConfig.DEPTH.PLAYER);
@@ -49,18 +51,22 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
             this.setTint(color);
         }
 
-        const groundY = GameConfig.PLAYER.GROUND_Y; // 440 (以前の安定値)
         const body = this.body as Phaser.Physics.Arcade.Body;
+        if (!body) return;
 
-        // 接地判定（物理的な接触 + 高さが目標に近いこと）
-        if (body && body.touching.down && body.velocity.y >= 0 && Math.abs(this.y - groundY) < 15) {
+        // 【刷新】物理エンジンによる衝突判定を100%信頼する方式
+        // body.touching.down: 他の物理ボディ（地面）の上にいるか
+        // body.blocked.down: 世界の境界（一番下など）の上にいるか
+        const isGrounded = body.touching.down || body.blocked.down;
+
+        if (isGrounded) {
+            // 着地した瞬間を検知
             if (this.wasInAir) {
                 this.scene.events.emit('playerLand');
                 this.wasInAir = false;
             }
 
-            this.y = groundY; // 座標の微細なズレを補正して吸着
-            this.setVelocityY(0);
+            // 座標の上書き固定やsetVelocityY(0)は廃止。物理エンジンの自然な静止に任せる。
             this.jumpCount = 0;
             
             if (this.anims.currentAnim?.key !== 'run') {
@@ -68,9 +74,11 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
             }
             
             if (Math.random() < 0.4) {
+                // 接地中のみ土埃を出す (足元の位置 y+165 付近)
                 this.scene.events.emit('playerRun', this.x + 85, this.y + 160);
             }
-        } else if (body) {
+        } else {
+            // 空中
             this.wasInAir = true;
             if (body.velocity.y < 0) {
                 this.play('jump', true);

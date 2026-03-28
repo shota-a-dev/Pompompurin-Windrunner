@@ -32,8 +32,13 @@ const config: Phaser.Types.Core.GameConfig = {
     default: 'arcade',
     arcade: {
       gravity: { x: 0, y: GameConfig.GRAVITY },
-      debug: false
+      debug: false,
+      fps: 60 // 物理演算の更新頻度を固定
     }
+  },
+  fps: {
+    target: 60,
+    forceSetTimeOut: true // 高リフレッシュレート端末での過剰な更新を抑制
   },
   scene: [BootScene, PreloadScene, TitleScene, MainGameScene, UIScene, GameOverScene, CollectionScene]
 };

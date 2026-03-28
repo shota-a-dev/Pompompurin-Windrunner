@@ -5,6 +5,7 @@ import TitleScene from './scenes/TitleScene';
 import MainGameScene from './scenes/MainGameScene';
 import UIScene from './scenes/UIScene';
 import GameOverScene from './scenes/GameOverScene';
+import CollectionScene from './scenes/CollectionScene';
 import { GameConfig } from './config/GameConfig';
 
 // 画面サイズをブラウザの比率に合わせて動的に計算（高さはGameConfig.REFERENCE_HEIGHTに固定）
@@ -34,7 +35,7 @@ const config: Phaser.Types.Core.GameConfig = {
       debug: false
     }
   },
-  scene: [BootScene, PreloadScene, TitleScene, MainGameScene, UIScene, GameOverScene]
+  scene: [BootScene, PreloadScene, TitleScene, MainGameScene, UIScene, GameOverScene, CollectionScene]
 };
 
 window.addEventListener('load', () => {

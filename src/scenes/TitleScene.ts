@@ -10,10 +10,12 @@ export default class TitleScene extends Phaser.Scene {
         const startScreen = document.getElementById('start-screen');
         const uiLayer = document.getElementById('ui-layer');
         const gameOverScreen = document.getElementById('gameover-screen');
+        const collectionScreen = document.getElementById('collection-screen');
 
         if (startScreen) startScreen.classList.remove('hidden');
         if (uiLayer) uiLayer.classList.add('hidden');
         if (gameOverScreen) gameOverScreen.classList.add('hidden');
+        if (collectionScreen) collectionScreen.classList.add('hidden');
 
         // ベストスコアの表示
         const bestScore = parseInt(localStorage.getItem('pomRunnerBestScore') || '0');
@@ -31,6 +33,16 @@ export default class TitleScene extends Phaser.Scene {
                 if (startScreen) startScreen.classList.add('hidden');
                 this.scene.start('MainGameScene');
             };
+        }
+
+        // コレクションボタンのイベント
+        const collectionBtn = document.getElementById('collection-btn');
+        if (collectionBtn) {
+            collectionBtn.addEventListener('click', () => {
+                console.log('Collection button clicked via addEventListener');
+                if (startScreen) startScreen.classList.add('hidden');
+                this.scene.start('CollectionScene');
+            });
         }
 
         // リセットボタンのイベント

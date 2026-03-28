@@ -54,7 +54,7 @@ export default class MainGameScene extends Phaser.Scene {
         });
         
         // 初期の地面を生成（画面幅分＋α）
-        while (this.groundSpawnX < GameConfig.WIDTH + GameConfig.GROUND.BLOCK_WIDTH) {
+        while (this.groundSpawnX < this.scale.width + GameConfig.GROUND.BLOCK_WIDTH) {
             this.spawnGround(false); // 最初は穴を開けない
         }
 
@@ -75,14 +75,14 @@ export default class MainGameScene extends Phaser.Scene {
             emitting: false
         }).setDepth(GameConfig.DEPTH.OBJECTS + 1);
 
-        // 砂埃用のテクスチャ
+        // 砂埃用のテクスチャ (サイズを設定値に連動)
         const dustSize = GameConfig.PLAYER.DUST_SIZE;
         const circle = this.make.graphics({ x: 0, y: 0 });
         circle.fillStyle(0xD2B48C, 1);
         circle.fillCircle(dustSize, dustSize, dustSize);
         circle.generateTexture('dust_particle', dustSize * 2, dustSize * 2);
         
-        // 敵の破片用のテクスチャ
+        // 敵の破片用のテクスチャ（赤い丸）
         const redCircle = this.make.graphics({ x: 0, y: 0 });
         redCircle.fillStyle(0xFF0000, 1);
         redCircle.fillCircle(8, 8, 8);
@@ -131,8 +131,8 @@ export default class MainGameScene extends Phaser.Scene {
     update(time: number, delta: number) {
         if (this.isGameOver) return;
 
-        // 落下判定（物理世界の底を広げたので、ここで死ぬ）
-        if (this.player.y > GameConfig.HEIGHT) {
+        // 落下判定
+        if (this.player.y > this.scale.height) {
             this.handleGameOver();
             return;
         }
@@ -219,7 +219,7 @@ export default class MainGameScene extends Phaser.Scene {
 
         this.groundSpawnX -= speed;
 
-        while (this.groundSpawnX < GameConfig.WIDTH + GameConfig.GROUND.BLOCK_WIDTH) {
+        while (this.groundSpawnX < this.scale.width + GameConfig.GROUND.BLOCK_WIDTH) {
             this.spawnGround();
         }
     }

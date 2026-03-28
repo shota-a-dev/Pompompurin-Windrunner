@@ -4,8 +4,7 @@
  */
 export const GameConfig = {
   // --- 画面設定 ---
-  WIDTH: 1280, // ゲーム画面の横幅 (px)
-  HEIGHT: 720, // ゲーム画面の縦幅 (px)
+  REFERENCE_HEIGHT: 720, // レイアウトの基準となる縦幅 (px)
   BG_COLOR: '#FFFDEB', // ゲームの背景色 (薄い黄色)
 
   // --- 物理設定 ---

@@ -7,15 +7,20 @@ import UIScene from './scenes/UIScene';
 import GameOverScene from './scenes/GameOverScene';
 import { GameConfig } from './config/GameConfig';
 
+// 画面サイズをブラウザの比率に合わせて動的に計算（高さはGameConfig.REFERENCE_HEIGHTに固定）
+const baseHeight = GameConfig.REFERENCE_HEIGHT;
+const aspectRatio = window.innerWidth / window.innerHeight;
+const baseWidth = baseHeight * aspectRatio;
+
 const config: Phaser.Types.Core.GameConfig = {
-  type: Phaser.AUTO, // setTintを使えるようにAUTOに戻す
-  width: GameConfig.WIDTH,
-  height: GameConfig.HEIGHT,
+  type: Phaser.AUTO,
+  width: baseWidth,
+  height: baseHeight,
   parent: 'game-container',
   backgroundColor: GameConfig.BG_COLOR,
   render: {
     pixelArt: true,
-    roundPixels: true, // WebGLでも座標を整数に丸めることでブレを防止
+    roundPixels: true,
     antialias: false
   },
   scale: {

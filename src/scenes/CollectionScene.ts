@@ -20,7 +20,6 @@ export default class CollectionScene extends Phaser.Scene {
         const collectionScreen = document.getElementById('collection-screen');
         const closeBtn = document.getElementById('close-collection-btn');
         const previewOverlay = document.getElementById('item-preview-overlay');
-        const resetBtn = document.getElementById('reset-collection-btn');
 
         if (!collectionScreen || !closeBtn || !previewOverlay) {
             console.error('CollectionScene: Required UI elements not found');
@@ -41,16 +40,7 @@ export default class CollectionScene extends Phaser.Scene {
             this.scene.start('TitleScene');
         };
 
-        // リセットボタン（テスト用）
-        if (resetBtn) {
-            resetBtn.onclick = (e) => {
-                e.preventDefault();
-                if (window.confirm('たからものの取得状況をリセットしてもよろしいですか？（テスト用機能）')) {
-                    localStorage.removeItem('pomRunnerUnlockedItems');
-                    this.updateUI();
-                }
-            };
-        }
+        // コレクションのリセットは設定メニューに移動しました（テスト用ボタンを削除）
 
         // プレビューオーバーレイをクリックで閉じる
         previewOverlay.onclick = () => {

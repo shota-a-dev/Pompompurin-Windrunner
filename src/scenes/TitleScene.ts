@@ -1,4 +1,5 @@
 import 'phaser';
+import SoundGenerator from '../utils/SoundGenerator';
 
 export default class TitleScene extends Phaser.Scene {
     constructor() {
@@ -22,14 +23,48 @@ export default class TitleScene extends Phaser.Scene {
         const startBestScoreUI = document.getElementById('startBestScore');
         if (startBestScoreUI) startBestScoreUI.innerText = bestScore.toLocaleString();
 
+        // 設定メニュー（開発用）のトグルとリセット処理
+        const settingsBtn = document.getElementById('settings-btn');
+        const settingsMenu = document.getElementById('settings-menu');
+        const settingsResetCollectionBtn = document.getElementById('settings-reset-collection-btn');
+
+        if (settingsBtn && settingsMenu) {
+            settingsBtn.onclick = (e) => {
+                e.preventDefault();
+                if (settingsMenu.classList.contains('hidden')) {
+                    settingsMenu.classList.remove('hidden');
+                    settingsMenu.style.display = 'block';
+                } else {
+                    settingsMenu.classList.add('hidden');
+                    settingsMenu.style.display = 'none';
+                }
+            };
+        }
+
+        if (settingsResetCollectionBtn) {
+            settingsResetCollectionBtn.onclick = (e) => {
+                e.preventDefault();
+                if (confirm('たからものの取得状況をリセットしてもよろしいですか？（テスト用機能）')) {
+                    localStorage.removeItem('pomRunnerUnlockedItems');
+                    localStorage.removeItem('pomRunnerTotalCoins');
+                }
+            };
+        }
+
         // スタートボタンのイベント
         const startBtn = document.getElementById('start-btn');
         if (startBtn) {
-            startBtn.onclick = () => {
+            startBtn.onclick = async () => {
                 const soundManager = this.sound as any;
-                if (soundManager.context && soundManager.context.state === 'suspended') {
-                    soundManager.context.resume();
+                try {
+                    if (soundManager.context && soundManager.context.state === 'suspended') {
+                        await soundManager.context.resume();
+                    }
+                } catch (e) {
+                    // ignore
                 }
+                // SoundGenerator の AudioContext も確実に resume する
+                try { await SoundGenerator.ensureAudioStarted(); } catch (e) { /* ignore */ }
                 if (startScreen) startScreen.classList.add('hidden');
                 this.scene.start('MainGameScene');
             };

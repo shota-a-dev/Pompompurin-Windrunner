@@ -314,7 +314,7 @@ export default class MainGameScene extends Phaser.Scene {
         this.showGameOver();
     }
 
-    private showGameOver() {
+    private async showGameOver() {
         const gameOverScreen = document.getElementById('gameover-screen');
         const finalScoreUI = document.getElementById('finalScore');
         const resultImage = document.getElementById('resultImage');
@@ -335,11 +335,16 @@ export default class MainGameScene extends Phaser.Scene {
         const totalCoins = parseInt(localStorage.getItem('pomRunnerTotalCoins') || '0');
         localStorage.setItem('pomRunnerTotalCoins', (totalCoins + this.coinsCollected).toString());
 
-        if (resultImage) {
+            if (resultImage) {
             const bestScore = parseInt(localStorage.getItem('pomRunnerBestScore') || '0');
             const isNewBest = this.score > bestScore;
             (resultImage as HTMLImageElement).src = isNewBest ? 'assets/image/ui/purin_update_best.png' : 'assets/image/ui/purin_gameover.png';
-            if (isNewBest) localStorage.setItem('pomRunnerBestScore', this.score.toString());
+            if (isNewBest) {
+                // 自己ベスト更新時にクラッカー音を鳴らす（AudioContext を確実に resume してから）
+                try { await SoundGenerator.ensureAudioStarted(); } catch (e) { /* ignore */ }
+                try { SoundGenerator.playCracker(); } catch (e) { /* 念のため例外は無視 */ }
+                localStorage.setItem('pomRunnerBestScore', this.score.toString());
+            }
         }
 
         if (gameOverScreen) {

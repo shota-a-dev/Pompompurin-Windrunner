@@ -39,6 +39,77 @@ export default class SoundGenerator {
         this.playTone(110, 'sawtooth', 0.3, 0.2);
     }
 
+    public static playCracker(): void {
+        // 祝祭的なクラッカー音を複数のバーストとキラキラ音で表現する
+        (async () => {
+            try {
+                if (this.audioCtx.state === 'suspended') await this.audioCtx.resume();
+            } catch (e) {
+                // resume に失敗しても続行する（最悪音が出なくてもゲームは続行）
+            }
+
+            const now = this.audioCtx.currentTime;
+
+            // 複数の短いノイズバーストでパーンパーンとしたクラッカー感を再現
+            const bursts = [
+                { offset: 0.0, duration: 0.12, gain: 0.22, freq: 1400 },
+                { offset: 0.12, duration: 0.10, gain: 0.16, freq: 1600 },
+                { offset: 0.24, duration: 0.08, gain: 0.12, freq: 1800 }
+            ];
+
+            for (const b of bursts) {
+                const t = now + b.offset;
+                const bufferSize = Math.floor(this.audioCtx.sampleRate * b.duration);
+                const buffer = this.audioCtx.createBuffer(1, bufferSize, this.audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    // 急速に減衰する包絡でパチッとした音にする
+                    const env = Math.exp(-8 * (i / bufferSize));
+                    data[i] = (Math.random() * 2 - 1) * env;
+                }
+
+                const noise = this.audioCtx.createBufferSource();
+                noise.buffer = buffer;
+                const noiseGain = this.audioCtx.createGain();
+                noiseGain.gain.setValueAtTime(b.gain, t);
+                noiseGain.gain.exponentialRampToValueAtTime(0.001, t + b.duration);
+
+                const bp = this.audioCtx.createBiquadFilter();
+                bp.type = 'bandpass';
+                bp.frequency.setValueAtTime(b.freq, t);
+                bp.Q.setValueAtTime(1.2, t);
+
+                noise.connect(bp);
+                bp.connect(noiseGain);
+                noiseGain.connect(this.audioCtx.destination);
+
+                noise.start(t);
+                noise.stop(t + b.duration);
+            }
+
+            // 高域のキラキラ（短い高音アルペジオ）を重ねて祝祭感を演出
+            const sparkle = [2200, 2600, 3000, 3400];
+            sparkle.forEach((f, i) => {
+                this.playTone(f, 'sine', 0.06, 0.05, now + 0.04 + i * 0.06);
+            });
+
+            // 軽い補助パーカッションで厚みを追加
+            this.playTone(1200, 'sawtooth', 0.04, 0.06, now + 0.02);
+            this.playTone(900, 'triangle', 0.05, 0.04, now + 0.18);
+        })();
+    }
+
+    /**
+     * ユーザー操作でAudioContextを確実に再開するためのヘルパー
+     */
+    public static async ensureAudioStarted(): Promise<void> {
+        try {
+            if (this.audioCtx.state === 'suspended') await this.audioCtx.resume();
+        } catch (e) {
+            // 無視
+        }
+    }
+
     /**
      * ウィンドランナー風の軽快なBGMをループ再生する
      */

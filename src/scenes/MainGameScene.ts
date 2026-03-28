@@ -27,6 +27,10 @@ export default class MainGameScene extends Phaser.Scene {
     private feverTimer: number = 0;
     private isGameOver: boolean = false;
 
+    // 統計データ
+    private coinsCollected: number = 0;
+    private enemiesDefeated: number = 0;
+
     constructor() {
         super('MainGameScene');
     }
@@ -41,6 +45,8 @@ export default class MainGameScene extends Phaser.Scene {
         this.isGameOver = false;
         this.gameSpeed = GameConfig.SPEED.NORMAL;
         this.groundSpawnX = 0;
+        this.coinsCollected = 0;
+        this.enemiesDefeated = 0;
 
         const uiLayer = document.getElementById('ui-layer');
         if (uiLayer) uiLayer.classList.remove('hidden');
@@ -75,14 +81,14 @@ export default class MainGameScene extends Phaser.Scene {
             emitting: false
         }).setDepth(GameConfig.DEPTH.OBJECTS + 1);
 
-        // 砂埃用のテクスチャ (サイズを設定値に連動)
+        // 砂埃用のテクスチャ
         const dustSize = GameConfig.PLAYER.DUST_SIZE;
         const circle = this.make.graphics({ x: 0, y: 0 });
         circle.fillStyle(0xD2B48C, 1);
         circle.fillCircle(dustSize, dustSize, dustSize);
         circle.generateTexture('dust_particle', dustSize * 2, dustSize * 2);
         
-        // 敵の破片用のテクスチャ（赤い丸）
+        // 敵の破片用のテクスチャ
         const redCircle = this.make.graphics({ x: 0, y: 0 });
         redCircle.fillStyle(0xFF0000, 1);
         redCircle.fillCircle(8, 8, 8);
@@ -263,6 +269,7 @@ export default class MainGameScene extends Phaser.Scene {
         coin.destroy();
         SoundGenerator.playCoin();
         this.distance += 1000;
+        this.coinsCollected++; // 統計加算
         this.updateScoreUI(true);
         if (!this.isFever) {
             this.feverGauge += GameConfig.FEVER.COIN_REWARD;
@@ -279,8 +286,10 @@ export default class MainGameScene extends Phaser.Scene {
 
     private hitEnemy(player: any, enemy: any) {
         if (this.isFever) {
+            // 敵撃破時のバラバラ演出
             this.enemyDebrisEmitter.explode(12, enemy.x + 50, enemy.y + 50);
             enemy.destroy();
+            this.enemiesDefeated++; // 統計加算
             this.cameras.main.shake(100, 0.01);
             SoundGenerator.playCoin();
         } else {
@@ -299,8 +308,23 @@ export default class MainGameScene extends Phaser.Scene {
         const gameOverScreen = document.getElementById('gameover-screen');
         const finalScoreUI = document.getElementById('finalScore');
         const resultImage = document.getElementById('resultImage');
+        
+        // 統計表示用のHTML要素
+        const resultDistanceUI = document.getElementById('resultDistance');
+        const resultCoinsUI = document.getElementById('resultCoins');
+        const resultEnemiesUI = document.getElementById('resultEnemies');
 
         if (finalScoreUI) finalScoreUI.innerText = this.score.toString();
+        
+        // 統計反映
+        if (resultDistanceUI) resultDistanceUI.innerText = Math.floor(this.distance / 100).toString();
+        if (resultCoinsUI) resultCoinsUI.innerText = this.coinsCollected.toString();
+        if (resultEnemiesUI) resultEnemiesUI.innerText = this.enemiesDefeated.toString();
+
+        // 累計コインの保存（コレクション用）
+        const totalCoins = parseInt(localStorage.getItem('pomRunnerTotalCoins') || '0');
+        localStorage.setItem('pomRunnerTotalCoins', (totalCoins + this.coinsCollected).toString());
+
         if (resultImage) {
             const bestScore = parseInt(localStorage.getItem('pomRunnerBestScore') || '0');
             const isNewBest = this.score > bestScore;

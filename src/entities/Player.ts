@@ -16,9 +16,9 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         scene.add.existing(this);
         scene.physics.add.existing(this);
         
-        // 物理境界を地面の高さに合わせる
+        // 物理境界の設定（左右と上は有効、下への落下を許容するため高さは広めに設定）
         this.setCollideWorldBounds(true);
-        (this.scene.physics.world.bounds as any).height = GameConfig.GROUND.Y; 
+        (this.scene.physics.world.bounds as any).height = GameConfig.HEIGHT + 200; 
         
         const body = this.body as Phaser.Physics.Arcade.Body;
         if (body) {
@@ -51,15 +51,16 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         const groundY = GameConfig.PLAYER.GROUND_Y; 
         const body = this.body as Phaser.Physics.Arcade.Body;
 
-        // 落下中または接地中(y速度が0以上)の場合のみ、接地座標への吸着を行う
-        if (body && this.y >= groundY - 1 && body.velocity.y >= 0) {
+        // 修正: 物理エンジンが接地と判断し、かつ下降中であり、さらに地面に近い高さにいる時のみ接地処理を行う
+        // これにより、ジャンプの頂点（速度0付近）での誤判定を防ぐ
+        if (body && body.touching.down && body.velocity.y >= 0 && Math.abs(this.y - groundY) < 10) {
             // 着地した瞬間を検知
             if (this.wasInAir) {
                 this.scene.events.emit('playerLand');
                 this.wasInAir = false;
             }
 
-            this.y = groundY;
+            this.y = groundY; // 座標の微細なズレを補正
             this.setVelocityY(0);
             this.jumpCount = 0;
             if (this.anims.currentAnim?.key !== 'run') {

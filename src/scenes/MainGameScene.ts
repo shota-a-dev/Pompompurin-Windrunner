@@ -9,6 +9,7 @@ import { GameConfig } from '../config/GameConfig';
 export default class MainGameScene extends Phaser.Scene {
     private player!: Player;
     private background!: Background;
+    private groundGroup!: Phaser.Physics.Arcade.Group;
     private coins!: Phaser.GameObjects.Group;
     private enemies!: Phaser.GameObjects.Group;
     private coinEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
@@ -17,9 +18,10 @@ export default class MainGameScene extends Phaser.Scene {
     
     private gameSpeed: number = GameConfig.SPEED.NORMAL;
     private score: number = 0;
-    private lastMilestoneScore: number = 0; // 加速判定用の前回スコア
+    private lastMilestoneScore: number = 0;
     private distance: number = 0;
     private spawnTimer: number = 0;
+    private groundSpawnX: number = 0; // 地面を生成する次のX座標
     private feverGauge: number = 0;
     private isFever: boolean = false;
     private feverTimer: number = 0;
@@ -38,11 +40,24 @@ export default class MainGameScene extends Phaser.Scene {
         this.isFever = false;
         this.isGameOver = false;
         this.gameSpeed = GameConfig.SPEED.NORMAL;
+        this.groundSpawnX = 0;
 
         const uiLayer = document.getElementById('ui-layer');
         if (uiLayer) uiLayer.classList.remove('hidden');
 
         this.background = new Background(this);
+        
+        // 地面グループの初期化 (動的に動かすため通常のGroupにする)
+        this.groundGroup = this.physics.add.group({
+            allowGravity: false,
+            immovable: true
+        });
+        
+        // 初期の地面を生成（画面幅分＋α）
+        while (this.groundSpawnX < GameConfig.WIDTH + GameConfig.GROUND.BLOCK_WIDTH) {
+            this.spawnGround(false); // 最初は穴を開けない
+        }
+
         this.player = new Player(this, GameConfig.PLAYER.START_X, GameConfig.PLAYER.START_Y);
 
         this.coins = this.add.group();
@@ -60,14 +75,14 @@ export default class MainGameScene extends Phaser.Scene {
             emitting: false
         }).setDepth(GameConfig.DEPTH.OBJECTS + 1);
 
-        // 砂埃用のテクスチャ (サイズを設定値に連動)
+        // 砂埃用のテクスチャ
         const dustSize = GameConfig.PLAYER.DUST_SIZE;
         const circle = this.make.graphics({ x: 0, y: 0 });
         circle.fillStyle(0xD2B48C, 1);
         circle.fillCircle(dustSize, dustSize, dustSize);
         circle.generateTexture('dust_particle', dustSize * 2, dustSize * 2);
         
-        // 敵の破片用のテクスチャ（赤い丸）
+        // 敵の破片用のテクスチャ
         const redCircle = this.make.graphics({ x: 0, y: 0 });
         redCircle.fillStyle(0xFF0000, 1);
         redCircle.fillCircle(8, 8, 8);
@@ -104,6 +119,9 @@ export default class MainGameScene extends Phaser.Scene {
 
         this.scene.stop('UIScene');
 
+        // プレイヤーと地面の衝突判定
+        this.physics.add.collider(this.player, this.groundGroup);
+        
         this.physics.add.overlap(this.player, this.coins, this.collectCoin, undefined, this);
         this.physics.add.overlap(this.player, this.enemies, this.hitEnemy, undefined, this);
 
@@ -112,6 +130,12 @@ export default class MainGameScene extends Phaser.Scene {
 
     update(time: number, delta: number) {
         if (this.isGameOver) return;
+
+        // 落下判定（物理世界の底を広げたので、ここで死ぬ）
+        if (this.player.y > GameConfig.HEIGHT) {
+            this.handleGameOver();
+            return;
+        }
 
         if (this.isFever) {
             this.feverTimer -= delta;
@@ -122,14 +146,16 @@ export default class MainGameScene extends Phaser.Scene {
             }
         }
 
-        // 60FPS(16.66ms)を基準とした時間経過係数
         const deltaMultiplier = delta / (1000 / 60);
-
         const currentSpeed = (this.isFever 
             ? this.gameSpeed * GameConfig.SPEED.FEVER_SPEED_MAGNIFICATION 
             : this.gameSpeed) * deltaMultiplier;
+        
         this.background.update(currentSpeed);
         this.player.updatePlayer();
+
+        // 地面ブロックの移動と生成
+        this.updateGround(currentSpeed);
 
         const coinArray = this.coins.getChildren();
         for (let i = coinArray.length - 1; i >= 0; i--) {
@@ -146,12 +172,10 @@ export default class MainGameScene extends Phaser.Scene {
         this.distance += currentSpeed;
         this.score = Math.floor(this.distance / 10);
         
-        // 段階的な難易度上昇 (スコア1000単位で加速)
         const scoreMilestone = Math.floor(this.score / 1000);
         if (scoreMilestone > this.lastMilestoneScore) {
             this.gameSpeed += GameConfig.SPEED.INCREMENT;
             this.lastMilestoneScore = scoreMilestone;
-            // 加速時の演出（任意：画面を一瞬フラッシュさせる等も可能）
         }
 
         this.updateScoreUI();
@@ -160,6 +184,43 @@ export default class MainGameScene extends Phaser.Scene {
         if (this.spawnTimer > GameConfig.SPAWN.INTERVAL) {
             this.spawnObject();
             this.spawnTimer = 0;
+        }
+    }
+
+    private spawnGround(allowHole: boolean = true) {
+        if (allowHole && Math.random() < GameConfig.GROUND.HOLE_CHANCE) {
+            this.groundSpawnX += GameConfig.GROUND.BLOCK_WIDTH;
+            return;
+        }
+
+        const ground = this.add.sprite(this.groundSpawnX, GameConfig.GROUND.Y, 'ground')
+            .setOrigin(0, 0)
+            .setDepth(GameConfig.DEPTH.GROUND);
+        
+        // 見た目のサイズを固定
+        ground.setDisplaySize(GameConfig.GROUND.BLOCK_WIDTH, GameConfig.GROUND.HEIGHT);
+        
+        // 物理ボディの設定を個別に強化
+        this.groundGroup.add(ground);
+        const body = ground.body as Phaser.Physics.Arcade.Body;
+        body.setAllowGravity(false);
+        body.setImmovable(true);
+        
+        this.groundSpawnX += GameConfig.GROUND.BLOCK_WIDTH;
+    }
+
+    private updateGround(speed: number) {
+        this.groundGroup.getChildren().forEach((child: any) => {
+            child.x -= speed;
+            if (child.x < -GameConfig.GROUND.BLOCK_WIDTH) {
+                child.destroy();
+            }
+        });
+
+        this.groundSpawnX -= speed;
+
+        while (this.groundSpawnX < GameConfig.WIDTH + GameConfig.GROUND.BLOCK_WIDTH) {
+            this.spawnGround();
         }
     }
 
@@ -224,10 +285,14 @@ export default class MainGameScene extends Phaser.Scene {
             SoundGenerator.playCoin();
         } else {
             SoundGenerator.playHit();
-            this.isGameOver = true;
-            this.physics.pause();
-            this.showGameOver();
+            this.handleGameOver();
         }
+    }
+
+    private handleGameOver() {
+        this.isGameOver = true;
+        this.physics.pause();
+        this.showGameOver();
     }
 
     private showGameOver() {

@@ -30,6 +30,12 @@ export default class MainGameScene extends Phaser.Scene {
     // 統計データ
     private coinsCollected: number = 0;
     private enemiesDefeated: number = 0;
+    // シルエット生成トリガー
+    // シルエット生成フラグ（命名から数値を除去）
+    // small / medium / large の3段階で管理し、閾値は GameConfig に移譲する
+    private silhouetteSmall: boolean = false;
+    private silhouetteMedium: boolean = false;
+    private silhouetteLarge: boolean = false;
 
     constructor() {
         super('MainGameScene');
@@ -47,6 +53,10 @@ export default class MainGameScene extends Phaser.Scene {
         this.groundSpawnX = 0;
         this.coinsCollected = 0;
         this.enemiesDefeated = 0;
+        // シルエットフラグを初期化（リトライ時に確実にリセットされるように）
+        this.silhouetteSmall = false;
+        this.silhouetteMedium = false;
+        this.silhouetteLarge = false;
 
         const uiLayer = document.getElementById('ui-layer');
         if (uiLayer) uiLayer.classList.remove('hidden');
@@ -177,6 +187,20 @@ export default class MainGameScene extends Phaser.Scene {
 
         this.distance += currentSpeed;
         this.score = Math.floor(this.distance / 10);
+        // スコア閾値でコインシルエットを出現させる
+        // 閾値は GameConfig.SILHOUETTE.THRESHOLDS から参照する（マジックナンバー回避）
+        if (!this.silhouetteSmall && this.score >= GameConfig.SILHOUETTE.THRESHOLDS.SMALL) {
+            this.silhouetteSmall = true;
+            this.spawnCoinSilhouette('small');
+        }
+        if (!this.silhouetteMedium && this.score >= GameConfig.SILHOUETTE.THRESHOLDS.MEDIUM) {
+            this.silhouetteMedium = true;
+            this.spawnCoinSilhouette('medium');
+        }
+        if (!this.silhouetteLarge && this.score >= GameConfig.SILHOUETTE.THRESHOLDS.LARGE) {
+            this.silhouetteLarge = true;
+            this.spawnCoinSilhouette('large');
+        }
         
         const scoreMilestone = Math.floor(this.score / 1000);
         if (scoreMilestone > this.lastMilestoneScore) {
@@ -270,6 +294,65 @@ export default class MainGameScene extends Phaser.Scene {
             const enemy = new Enemy(this, x, y, isFly ? 'fly' : 'land');
             enemy.setDepth(GameConfig.DEPTH.OBJECTS);
             this.enemies.add(enemy);
+        }
+    }
+
+    /**
+     * 指定サイズのシルエット用パターンを読み込み、コインを配置する
+     * size: 'small' | 'medium' | 'large'
+     */
+    private spawnCoinSilhouette(size: 'small' | 'medium' | 'large') {
+        // パターン: '#' がコイン、' ' が空白
+        let pattern: string[] = [];
+        if (size === 'small') {
+            // プリンの台形シルエット（上が狭く下が広い台形）
+            pattern = [
+                '  ###  ',
+                ' ##### ',
+                '#######',
+                '#######'
+            ];
+        } else if (size === 'medium') {
+            pattern = [
+                '   #####   ',
+                '  #######  ',
+                ' ######### ',
+                '###########',
+                '###########',
+                ' ######### '
+            ];
+        } else {
+            pattern = [
+                '    #######    ',
+                '   #########   ',
+                '  ###########  ',
+                ' ############# ',
+                '###############',
+                '###############',
+                '###############',
+                ' ############# '
+            ];
+        }
+
+        const spacing = Math.floor(GameConfig.SPAWN.COIN_SIZE * 0.85);
+        const cols = pattern[0].length;
+        const rows = pattern.length;
+
+        // 出現位置（画面外から流れてくるように右端に配置）
+        const startX = this.scale.width + 120; // 右外側
+        const startY = GameConfig.GROUND.Y - rows * (spacing / 2) - 220; // 地面から上に配置
+
+        for (let r = 0; r < rows; r++) {
+            const row = pattern[r];
+            for (let c = 0; c < cols; c++) {
+                if (row[c] === '#') {
+                    const x = startX + c * spacing;
+                    const y = startY + r * spacing;
+                    const coin = new Coin(this, x, y);
+                    coin.setDepth(GameConfig.DEPTH.OBJECTS);
+                    this.coins.add(coin);
+                }
+            }
         }
     }
 

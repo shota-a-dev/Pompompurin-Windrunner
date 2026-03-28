@@ -66,14 +66,16 @@ export default class TitleScene extends Phaser.Scene {
                 }
                 // SoundGenerator の AudioContext も確実に resume する
                 try { await SoundGenerator.ensureAudioStarted(); } catch (e) { /* ignore */ }
-                // 初回起動時にロード時の向きで作られたままの描画サイズになる問題を回避
+                // 現在のビューポート（回転後のサイズ）を使って再計算し、
+                // ユーザーがページ読み込み後に回転してから「遊ぶ」を押した場合に備える。
                 try {
                     const baseHeight = GameConfig.REFERENCE_HEIGHT;
-                    const aspect = window.innerWidth / window.innerHeight;
-                    const baseWidth = Math.round(baseHeight * aspect);
+                    const vv = (window as any).visualViewport;
+                    const vw = (vv && vv.width) || window.innerWidth;
+                    const vh = (vv && vv.height) || window.innerHeight || document.documentElement.clientHeight;
+                    const baseWidth = Math.round(baseHeight * (vw / vh));
                     this.scale.resize(baseWidth, baseHeight);
 
-                    // canvas の CSS を強制的に更新して親コンテナに広げる
                     const canvas = (this.game.canvas as HTMLCanvasElement | null);
                     if (canvas) {
                         canvas.style.width = '100%';
@@ -83,7 +85,6 @@ export default class TitleScene extends Phaser.Scene {
                         canvas.style.margin = '0 auto';
                     }
 
-                    // Phaser の内部リサイズ処理が必要に応じて走るように resize イベントを送る
                     try { window.dispatchEvent(new Event('resize')); } catch (e) { /* ignore */ }
                 } catch (e) {
                     // resize に失敗してもゲームは起動する

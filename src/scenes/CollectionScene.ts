@@ -20,6 +20,7 @@ export default class CollectionScene extends Phaser.Scene {
         const collectionScreen = document.getElementById('collection-screen');
         const closeBtn = document.getElementById('close-collection-btn');
         const previewOverlay = document.getElementById('item-preview-overlay');
+        const resetBtn = document.getElementById('reset-collection-btn');
 
         if (!collectionScreen || !closeBtn || !previewOverlay) {
             console.error('CollectionScene: Required UI elements not found');
@@ -39,6 +40,17 @@ export default class CollectionScene extends Phaser.Scene {
             collectionScreen.classList.add('hidden');
             this.scene.start('TitleScene');
         };
+
+        // リセットボタン（テスト用）
+        if (resetBtn) {
+            resetBtn.onclick = (e) => {
+                e.preventDefault();
+                if (window.confirm('たからものの取得状況をリセットしてもよろしいですか？（テスト用機能）')) {
+                    localStorage.removeItem('pomRunnerUnlockedItems');
+                    this.updateUI();
+                }
+            };
+        }
 
         // プレビューオーバーレイをクリックで閉じる
         previewOverlay.onclick = () => {
@@ -94,8 +106,10 @@ export default class CollectionScene extends Phaser.Scene {
             const buyBtn = card.querySelector('.buy-btn');
             if (buyBtn && canAfford && !isUnlocked) {
                 (buyBtn as HTMLElement).onclick = (e) => {
-                    e.stopPropagation(); // 親カードのプレビューイベントを阻止
-                    this.purchaseItem(item);
+                    e.stopPropagation();
+                    if (window.confirm(`${item.name} をコイン ${item.cost} 枚で交換しますか？`)) {
+                        this.purchaseItem(item);
+                    }
                 };
             }
 

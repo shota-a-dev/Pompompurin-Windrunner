@@ -54,6 +54,9 @@
 
     <!-- Start Screen -->
     <div id="start-screen" class="absolute inset-0 flex flex-col items-center justify-center bg-[#87CEEB]/80 backdrop-blur-sm z-[300] transition-opacity duration-500">
+      <!-- Version表記 (スタート画面内・右上) -->
+      <div class="absolute top-4 right-4 text-[10px] font-bold text-[#5E3A21]/40 pointer-events-none">Ver 1.0.0</div>
+      
       <div class="bg-white p-6 rounded-[2.5rem] shadow-2xl text-center border-8 border-[#FDE047] max-w-sm w-11/12">
         <h1 class="text-3xl font-black text-[#5E3A21] mb-2 tracking-tighter">ポムランナー</h1>
         <p class="text-lg font-bold mb-4 text-[#5E3A21]">BEST SCORE: <span id="startBestScore" class="text-orange-500">0</span></p>
@@ -66,48 +69,50 @@
         </div>
       </div>
     </div>
-<!-- Collection Screen -->
-<div id="collection-screen" class="absolute inset-0 flex flex-col bg-[#FFFDEB]/98 backdrop-blur-md z-[1000] hidden overflow-hidden">
-  <!-- ... (既存の構造) ... -->
-  <div class="w-full max-w-5xl mx-auto h-full flex flex-col p-4">
-    <!-- 1行目: ヘッダー (高さを抑えて上に寄せる) -->
-    <div class="flex justify-between items-center mb-4 border-b-2 border-[#FDE047] pb-2">
-      <h2 class="text-2xl font-black text-[#5E3A21]">たからもの</h2>
-      <div class="bg-white px-4 py-1.5 rounded-xl border-4 border-[#FDE047] flex items-center gap-2 shadow-sm">
-        <img src="assets/image/sprites/coin.png" class="w-6 h-6 object-contain" alt="coin">
-        <span id="collectionTotalCoins" class="text-xl font-black text-[#5E3A21]">0</span>
-      </div>
-    </div>
 
-    <!-- 2行目: コレクションリスト (1行4列固定・スクロール領域) -->
-    <div class="flex-1 overflow-y-auto mb-4 pr-1 custom-scrollbar">
-      <div id="collectionGrid" class="grid grid-cols-4 gap-3">
-        <!-- アイテムが生成される -->
-      </div>
-    </div>
+    <!-- Collection Screen -->
+    <div id="collection-screen" class="absolute inset-0 flex flex-col bg-[#FFFDEB]/98 backdrop-blur-md z-[1000] hidden overflow-hidden">
+      <div class="w-full max-w-5xl mx-auto h-full flex flex-col p-4">
+        <!-- 1行目: ヘッダー (高さを抑えて上に寄せる) -->
+        <div class="flex justify-between items-center mb-4 border-b-2 border-[#FDE047] pb-2">
+          <div class="flex items-center gap-4">
+            <h2 class="text-2xl font-black text-[#5E3A21]">たからもの</h2>
+            <!-- テスト用リセットボタン -->
+            <button id="reset-collection-btn" class="text-[10px] bg-red-100 text-red-500 px-2 py-1 rounded-md font-bold border border-red-200 pointer-events-auto hover:bg-red-200 transition-colors">リセット</button>
+          </div>
+          <div class="bg-white px-4 py-1.5 rounded-xl border-4 border-[#FDE047] flex items-center gap-2 shadow-sm">
+            <img src="assets/image/sprites/coin.png" class="w-6 h-6 object-contain" alt="coin">
+            <span id="collectionTotalCoins" class="text-xl font-black text-[#5E3A21]">0</span>
+          </div>
+        </div>
 
-    <!-- 3行目: もどるボタン (サイズを適切に縮小) -->
-    <div class="flex justify-center pb-2">
-      <button id="close-collection-btn" class="bg-[#5E3A21] text-white text-base font-black py-2.5 px-12 rounded-full shadow-[0_4px_0_#3D2612] hover:translate-y-0.5 active:translate-y-1 transition-all pointer-events-auto">もどる</button>
-    </div>
-  </div>
+        <!-- 2行目: コレクションリスト (1行4列固定・スクロール領域) -->
+        <div class="flex-1 overflow-y-auto mb-4 pr-1 custom-scrollbar">
+          <div id="collectionGrid" class="grid grid-cols-4 gap-3">
+            <!-- アイテムが生成される -->
+          </div>
+        </div>
+
+        <!-- 3行目: もどるボタン (サイズを適切に縮小) -->
+        <div class="flex justify-center pb-2">
+          <button id="close-collection-btn" class="bg-[#5E3A21] text-white text-base font-black py-2.5 px-12 rounded-full shadow-[0_4px_0_#3D2612] hover:translate-y-0.5 active:translate-y-1 transition-all pointer-events-auto">もどる</button>
+        </div>
+      </div>
 
       <!-- 全画面プレビューオーバーレイ (たからものをタップした時に表示) -->
       <div id="item-preview-overlay" class="absolute inset-0 bg-black/90 backdrop-blur-md z-[1100] flex flex-col items-center hidden opacity-0 transition-opacity duration-300 pointer-events-auto p-6">
-        
         <!-- 画像エリア (比率: 7.5) -->
         <div class="h-[75%] w-full flex items-center justify-center">
           <img id="previewImage" src="" class="max-w-full max-h-full object-contain drop-shadow-[0_0_40px_rgba(253,224,71,0.6)] animate-in zoom-in duration-500">
         </div>
-
         <!-- テキスト情報エリア (比率: 2.5 / 縮小禁止) -->
         <div class="h-[25%] flex-shrink-0 w-full max-w-md flex flex-col items-center justify-center text-center animate-in slide-in-from-bottom-4 duration-500">
           <h3 id="previewName" class="text-3xl font-black text-white mb-2 tracking-tight">アイテム名</h3>
           <p id="previewDesc" class="text-sm text-white/60 leading-relaxed px-4 line-clamp-3">説明文がここに入ります。</p>
         </div>
-
       </div>
-</div>
+    </div>
+
     <!-- Game Over Screen -->
     <div id="gameover-screen" class="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-500 z-[400] hidden">
       <div class="bg-white p-6 rounded-[3rem] shadow-2xl text-center border-8 border-[#5E3A21] w-11/12 max-w-2xl flex flex-row items-center justify-center gap-8">

@@ -9,7 +9,8 @@
     "paths": {
       "@/*": ["src/*"]
     },
+    "types": ["vite/client", "node"],
     "lib": ["ESNext", "DOM"]
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "vite.config.ts"]
 }
